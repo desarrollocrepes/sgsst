@@ -47,7 +47,7 @@ export default function Login() {
 
   return (
     <div style={{ maxWidth: '400px', margin: '100px auto', fontFamily: 'Arial, sans-serif', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-      <h2 style={{ textAlign: 'center', color: '#2c3e50' }}>Gestión de Reportes SST</h2>
+      <h2 style={{ textAlign: 'center', color: '#2c3e50' }}>SG-SST</h2>
       
       <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
         <div>
