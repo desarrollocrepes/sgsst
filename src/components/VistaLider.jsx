@@ -1,4 +1,3 @@
-// src/components/VistaLider.jsx
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
@@ -119,8 +118,7 @@ export default function VistaLider() {
 
       {/* BANNER */}
       <div style={{ backgroundColor: '#ecf0f1', padding: '20px', borderRadius: '8px', marginTop: '20px', textAlign: 'center', border: '1px solid #bdc3c7' }}>
-        <h3>Gestión de Novedades de Seguridad y Salud</h3>
-        <p>Reporte reincorporaciones, recomendaciones o incapacidades recurrentes de su equipo de trabajo asignado.</p>
+        <p>Reporte de Novedades de SST de su equipo de trabajo</p>
         <button 
           onClick={() => setMostrarFormulario(!mostrarFormulario)} 
           style={{ backgroundColor: '#3498db', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}
@@ -131,9 +129,7 @@ export default function VistaLider() {
 
       {/* FORMULARIO */}
       {mostrarFormulario && (
-        <form onSubmit={handleSubmit(onSubmitReporte)} style={{ backgroundColor: '#fff', border: '1px solid #dee2e6', padding: '25px', borderRadius: '8px', marginTop: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-          <h4 style={{ marginTop: 0, color: '#2c3e50' }}>Formulario de Reporte Obligatorio</h4>
-          
+        <form onSubmit={handleSubmit(onSubmitReporte)} style={{ backgroundColor: '#fff', border: '1px solid #dee2e6', padding: '25px', borderRadius: '8px', marginTop: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>          
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             <div>
               <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Seleccionar Colaborador de su Equipo:</label>
@@ -147,7 +143,7 @@ export default function VistaLider() {
               
               {colaboradorDetalle && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '15px', padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '5px', border: '1px dashed #ccc' }}>
-                  <img src={colaboradorDetalle.foto} alt={colaboradorDetalle.nombre.split(" ")[0]} style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }} />
+                  <img src={colaboradorDetalle.foto} alt={colaboradorDetalle.nombre} style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }} />
                   <div>
                     <strong style={{ display: 'block' }}>{colaboradorDetalle.nombre}</strong>
                     <small>Documento: {colaboradorDetalle.document_number}</small>
@@ -159,8 +155,11 @@ export default function VistaLider() {
             <div>
               <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Categoría del Evento:</label>
               <select {...register("categoria", { required: "Seleccione una categoría" })} style={{ width: '100%', padding: '8px', borderRadius: '4px' }}>
-                <option value="">-- Seleccione --</option>
+                <option value="">Seleccione Categoría...</option>
                 <option value="reincorporacion">Reincorporación post incapacidad</option>
+                <option value="medicas">Recomendaciones médicas</option>
+                <option value="nutricionales">Recomendaciones nutricionales</option>
+                <option value="recurrentes">Incapacidades recurrentes</option>
                 <option value="otro">Otro</option>
               </select>
             </div>
@@ -178,9 +177,9 @@ export default function VistaLider() {
               <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Tipo de Entidad:</label>
               <select {...register("tipoEntidad", { required: "Seleccione tipo de entidad" })} style={{ width: '100%', padding: '8px', borderRadius: '4px' }}>
                 <option value="">-- Seleccione --</option>
-                <option value="eps">EPS</option>
-                <option value="arl">ARL</option>
-                <option value="prepagada">Medicina prepagada</option>
+                <option value="EPS">EPS</option>
+                <option value="ARL">ARL</option>
+                <option value="MEDICINA PREPAGADA">Medicina prepagada</option>
               </select>
             </div>
 
@@ -196,7 +195,7 @@ export default function VistaLider() {
           </div>
 
           <button type="submit" style={{ marginTop: '15px', backgroundColor: '#2ecc71', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
-            Enviar a Seguridad y Salud
+            Enviar a SST
           </button>
         </form>
       )}
