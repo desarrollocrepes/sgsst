@@ -5,21 +5,35 @@ import dayjs from 'dayjs';
 import axios from 'axios';
 import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 
+// --- CONSTANTES ---
+const API_BASE = 'https://macfer.crepesywaffles.com/api';
+const BUK_API = 'https://apialohav2.crepesywaffles.com/buk';
+
+// --- FUNCIONES AUXILIARES ---
+const calcularEdad = (birthday) => birthday ? dayjs().diff(dayjs(birthday), 'year') : 'N/A';
+const calcularAntiguedad = (ingreso) => ingreso ? dayjs().diff(dayjs(ingreso), 'year') : 'N/A';
+const calcularIMC = (peso, talla) => (peso && talla) ? (peso / (talla * talla)).toFixed(2) : 'N/A';
+const verificarVencimiento = (gestionesData) => {
+  if (!gestionesData || gestionesData.length === 0) return false;
+  return gestionesData.some(g => {
+    const temp = g.attributes.temporalidad;
+    return temp && dayjs().isAfter(dayjs(temp), 'day');
+  });
+};
+
 export default function VistaSST() {
   const navigate = useNavigate();
   const [sst, setSst] = useState(null);
   const [reportes, setReportes] = useState([]);
   const [cargandoGlobal, setCargandoGlobal] = useState(true);
-  
-  // Estados para Modal y Cruce de datos con la API de Empleados
   const [casoSeleccionado, setCasoSeleccionado] = useState(null);
   const [datosBukColaborador, setDatosBukColaborador] = useState(null);
   const [cargandoCruceBuk, setCargandoCruceBuk] = useState(false);
   const [mostrarFormSeguimiento, setMostrarFormSeguimiento] = useState(false);
+  const [gestionEnEdicion, setGestionEnEdicion] = useState(null);
+  const { register, handleSubmit, reset, setValue } = useForm();
 
-  const { register, handleSubmit, reset } = useForm();
-
-  // 1. Cargar sesión analista SST
+  // --- EFECTOS ---
   useEffect(() => {
     const usuario = localStorage.getItem('usuarioLogueado');
     if (usuario) {
@@ -34,12 +48,17 @@ export default function VistaSST() {
     }
   }, [navigate]);
 
-  // 2. Traer todos los reportes de Strapi populando sus gestiones internas
   const cargarReportesSST = async () => {
     try {
       setCargandoGlobal(true);
-      const response = await axios.get('https://macfer.crepesywaffles.com/api/sstreportes?populate=sstgestions&sort=createdAt:desc');
-      setReportes(response.data.data || []);
+      const response = await axios.get(`${API_BASE}/sstreportes?populate=sstgestions&sort=createdAt:desc`);
+      const data = response.data.data || [];
+      setReportes(data);
+
+      if (casoSeleccionado) {
+        const casoActualizado = data.find(r => r.id === casoSeleccionado.id);
+        if (casoActualizado) setCasoSeleccionado(casoActualizado);
+      }
     } catch (error) {
       console.error("Error al consultar reportes generales:", error);
     } finally {
@@ -48,52 +67,73 @@ export default function VistaSST() {
   };
 
   useEffect(() => {
-    if (sst) {
-      cargarReportesSST();
-    }
+    if (sst) cargarReportesSST();
   }, [sst]);
 
-  // 3. Ejecutar cruce con la API de empleados al seleccionar un caso de la tabla
   useEffect(() => {
-    if (casoSeleccionado) {
+    if (casoSeleccionado && !datosBukColaborador) {
       const doc = casoSeleccionado.attributes.colaborador_documento;
       setCargandoCruceBuk(true);
-      setDatosBukColaborador(null);
-
-      axios.get(`https://apialohav2.crepesywaffles.com/buk/empleados3?documento=${doc}`)
+      // CORRECCIÓN: Uso correcto de template literals con backticks
+      axios.get(`${BUK_API}/empleados3?documento=${doc}`)
         .then(res => {
-          if (res.data.ok && res.data.data.length > 0) {
-            setDatosBukColaborador(res.data.data[0]);
-          }
+          if (res.data.ok && res.data.data.length > 0) setDatosBukColaborador(res.data.data[0]);
         })
-        .catch(err => console.error("Error al cruzar datos del colaborador con Buk:", err))
+        .catch(err => console.error("Error Buk:", err))
         .finally(() => setCargandoCruceBuk(false));
     }
   }, [casoSeleccionado]);
 
-  // Funciones de cálculo demográfico
-  const calcularEdad = (birthday) => birthday ? dayjs().diff(dayjs(birthday), 'year') : 'N/A';
-  const calcularAntiguedad = (ingreso) => ingreso ? dayjs().diff(dayjs(ingreso), 'year') : 'N/A';
-  const calcularIMC = (peso, talla) => (peso && talla) ? (peso / (talla * talla)).toFixed(2) : 'N/A';
-
-  // Métricas KPIs calculadas sobre la estructura de atributos de Strapi
-  const kpiAbiertos = reportes.filter(r => r.attributes.estado === 'abierto' || r.attributes.estado === 'Abierto').length;
-  const kpiSeguimiento = reportes.filter(r => r.attributes.estado === 'seguimiento' || r.attributes.estado === 'En Seguimiento').length;
-  const kpiCerrados = reportes.filter(r => r.attributes.estado === 'cerrado' || r.attributes.estado === 'Cerrado').length;
+  // --- MÉTRICAS (KPIs) ---
+  const metricas = {
+    abiertos: reportes.filter(r => r.attributes.estado === 'abierto').length,
+    seguimiento: reportes.filter(r => r.attributes.estado === 'seguimiento').length,
+    cerrados: reportes.filter(r => r.attributes.estado === 'cerrado').length,
+    total: reportes.length
+  };
 
   const datosGraficoPie = [
-    { name: 'Abiertos', value: kpiAbiertos, color: '#e74c3c' },
-    { name: 'En Seguimiento', value: kpiSeguimiento, color: '#f39c12' },
-    { name: 'Cerrados', value: kpiCerrados, color: '#2ecc71' }
+    { name: 'Abiertos', value: metricas.abiertos, color: '#e74c3c' },
+    { name: 'En Seguimiento', value: metricas.seguimiento, color: '#f39c12' },
+    { name: 'Cerrados', value: metricas.cerrados, color: '#2ecc71' }
   ];
 
-  // 4. Guardar un seguimiento médico (Efectúa POST a Gestiones y PUT a Reporte)
+  // --- HANDLERS ---
+  const handleEditarGestion = (gestion) => {
+    setGestionEnEdicion(gestion);
+    setMostrarFormSeguimiento(true);
+    const attrs = gestion.attributes;
+    const fechaHoraFormateada = attrs.fecha_hora ? dayjs(attrs.fecha_hora).format('YYYY-MM-DDTHH:mm') : '';
+
+    setValue('fechaHistorial', fechaHoraFormateada);
+    setValue('accion', attrs.accion_realizada);
+    setValue('sistema', attrs.sistema_afectado);
+    setValue('nuevoEstado', attrs.estado_registrado || casoSeleccionado.attributes.estado);
+    setValue('pesoKg', attrs.peso_kg);
+    setValue('tallaM', attrs.talla_m);
+    setValue('diagnostico', attrs.diagnostico);
+    setValue('descripcion', attrs.descripcion);
+    setValue('temporalidad', attrs.temporalidad ? dayjs(attrs.temporalidad).format('YYYY-MM-DD') : '');
+  };
+
+  const handleEliminarGestion = async (id) => {
+    if (window.confirm("¿Seguro que desea eliminar este seguimiento?")) {
+      try {
+        // CORRECCIÓN: Uso correcto de template literals con backticks
+        await axios.delete(`${API_BASE}/sstgestions/${id}`);
+        alert("Seguimiento eliminado");
+        cargarReportesSST();
+      } catch (error) {
+        console.error("Error al eliminar gestión", error);
+      }
+    }
+  };
+
   const onSubmitGestionSST = async (data) => {
     try {
-      // Tomamos la fecha del sistema o permitimos edición manual para históricos de Excel
       const fechaFinalIso = data.fechaHistorial ? new Date(data.fechaHistorial).toISOString() : new Date().toISOString();
+      const temporalidadIso = data.temporalidad ? new Date(data.temporalidad).toISOString() : null;
 
-      // Payload para la tabla Gestions vinculada por ID al reporte correspondiente
       const payloadGestion = {
         data: {
           creador: sst.nombre,
@@ -104,27 +144,39 @@ export default function VistaSST() {
           talla_m: Number(data.tallaM),
           diagnostico: data.diagnostico,
           descripcion: data.descripcion,
-          sstreporte: casoSeleccionado.id // Relación con el reporte padre
+          temporalidad: temporalidadIso,
+          estado_registrado: data.nuevoEstado,
+          sstreporte: casoSeleccionado.id
         }
       };
 
-      // Guardamos la nueva gestión
-      await axios.post('https://macfer.crepesywaffles.com/api/sstgestions', payloadGestion);
+      if (gestionEnEdicion) {
+        await axios.put(`${API_BASE}/sstgestions/${gestionEnEdicion.id}`, payloadGestion);
+      } else {
+        await axios.post(`${API_BASE}/sstgestions`, payloadGestion);
+      }
 
-      // Actualizamos el estado del reporte padre si cambió (abierto -> seguimiento / cerrado)
-      await axios.put(`https://macfer.crepesywaffles.com/api/sstreportes/${casoSeleccionado.id}`, {
-        data: { estado: data.nuevoEstado }
-      });
+      if (casoSeleccionado.attributes.estado !== data.nuevoEstado) {
+        await axios.put(`${API_BASE}/sstreportes/${casoSeleccionado.id}`, {
+          data: { estado: data.nuevoEstado }
+        });
+      }
 
-      alert("Seguimiento guardado y estado del reporte actualizado con éxito.");
-      setCasoSeleccionado(null); // Cerrar modal
-      setMostrarFormSeguimiento(false);
-      reset();
-      cargarReportesSST(); // Recargar el cuadro de mando
+      alert(gestionEnEdicion ? "Seguimiento actualizado" : "Seguimiento guardado exitosamente");
+      cerrarModal();
+      cargarReportesSST();
     } catch (error) {
       console.error("Error al procesar el seguimiento en Strapi:", error);
       alert("Hubo un fallo al sincronizar la información.");
     }
+  };
+
+  const cerrarModal = () => {
+    setCasoSeleccionado(null);
+    setDatosBukColaborador(null);
+    setMostrarFormSeguimiento(false);
+    setGestionEnEdicion(null);
+    reset();
   };
 
   const cerrarSesion = () => {
@@ -132,7 +184,30 @@ export default function VistaSST() {
     navigate('/login');
   };
 
+  // --- RENDERIZADO CONDICIONAL DE CARGA ---
   if (!sst) return <p style={{ padding: '20px' }}>Cargando panel operacional...</p>;
+
+  // --- SUBCOMPONENTES (Para mantener el render principal limpio) ---
+  const renderKPIs = () => (
+    <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
+      <div style={{ flex: 1, backgroundColor: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+        <h2 style={{ margin: 0 }}>{metricas.total}</h2>
+        <small style={{ color: '#7f8c8d' }}>Casos Radicados</small>
+      </div>
+      <div style={{ flex: 1, backgroundColor: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center', borderBottom: '4px solid #e74c3c' }}>
+        <h2 style={{ margin: 0, color: '#e74c3c' }}>{metricas.abiertos}</h2>
+        <small style={{ color: '#7f8c8d' }}>Abiertos</small>
+      </div>
+      <div style={{ flex: 1, backgroundColor: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center', borderBottom: '4px solid #f39c12' }}>
+        <h2 style={{ margin: 0, color: '#f39c12' }}>{metricas.seguimiento}</h2>
+        <small style={{ color: '#7f8c8d' }}>En Seguimiento</small>
+      </div>
+      <div style={{ flex: 1, backgroundColor: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center', borderBottom: '4px solid #2ecc71' }}>
+        <h2 style={{ margin: 0, color: '#2ecc71' }}>{metricas.cerrados}</h2>
+        <small style={{ color: '#7f8c8d' }}>Cerrados</small>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px', backgroundColor: '#f4f6f8', minHeight: '100vh' }}>
@@ -151,30 +226,12 @@ export default function VistaSST() {
 
       {cargandoGlobal ? <p style={{ marginTop: '20px' }}>Cargando métricas y reportes globales...</p> : (
         <>
-          {/* CARDS KPIs */}
-          <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
-            <div style={{ flex: 1, backgroundColor: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-              <h2 style={{ margin: 0 }}>{reportes.length}</h2>
-              <small style={{ color: '#7f8c8d' }}>Casos Radicados</small>
-            </div>
-            <div style={{ flex: 1, backgroundColor: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center', borderBottom: '4px solid #e74c3c' }}>
-              <h2 style={{ margin: 0, color: '#e74c3c' }}>{kpiAbiertos}</h2>
-              <small style={{ color: '#7f8c8d' }}>Abiertos</small>
-            </div>
-            <div style={{ flex: 1, backgroundColor: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center', borderBottom: '4px solid #f39c12' }}>
-              <h2 style={{ margin: 0, color: '#f39c12' }}>{kpiSeguimiento}</h2>
-              <small style={{ color: '#7f8c8d' }}>En Seguimiento</small>
-            </div>
-            <div style={{ flex: 1, backgroundColor: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center', borderBottom: '4px solid #2ecc71' }}>
-              <h2 style={{ margin: 0, color: '#2ecc71' }}>{kpiCerrados}</h2>
-              <small style={{ color: '#7f8c8d' }}>Cerrados</small>
-            </div>
-          </div>
+          {renderKPIs()}
 
           {/* GRÁFICO */}
           <div style={{ display: 'flex', justifyContent: 'center', backgroundColor: 'white', padding: '20px', borderRadius: '8px', marginTop: '20px' }}>
             <div>
-              <h4 style={{ margin: '0 0 10px 0', textCenter: 'center', color: '#2c3e50' }}>Distribución Porcentual por Estado</h4>
+              <h4 style={{ margin: '0 0 10px 0', textAlign: 'center', color: '#2c3e50' }}>Distribución Porcentual por Estado</h4>
               <PieChart width={320} height={220}>
                 <Pie data={datosGraficoPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70}>
                   {datosGraficoPie.map((entry, idx) => <Cell key={`cell-${idx}`} fill={entry.color} />)}
@@ -187,7 +244,7 @@ export default function VistaSST() {
 
           {/* TABLA PRINCIPAL */}
           <div style={{ marginTop: '20px', backgroundColor: 'white', padding: '20px', borderRadius: '8px' }}>
-            <h3 style={{ color: '#2c3e50', marginTop: 0 }}>Historial General de Reportes (Haga clic para gestionar)</h3>
+            <h3 style={{ color: '#2c3e50', marginTop: 0 }}>Historial General de Reportes</h3>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ backgroundColor: '#ecf0f1' }}>
@@ -199,28 +256,35 @@ export default function VistaSST() {
                 </tr>
               </thead>
               <tbody>
-                {reportes.map(rep => (
-                  <tr key={rep.id} style={{ borderBottom: '1px solid #ddd', cursor: 'pointer' }} onClick={() => setCasoSeleccionado(rep)}>
-                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{rep.id}</td>
-                    <td style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <img src={rep.attributes.colaborador_foto} alt="img" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
-                      <div>
-                        <span>{rep.attributes.colaborador_nombre}</span><br/>
-                        <small style={{ color: '#7f8c8d' }}>Doc: {rep.attributes.colaborador_documento}</small>
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px' }}>
-                      <span style={{ 
-                        padding: '4px 8px', borderRadius: '12px', fontSize: '12px', color: 'white', fontWeight: 'bold', textTransform: 'uppercase',
-                        backgroundColor: rep.attributes.estado === 'abierto' ? '#e74c3c' : rep.attributes.estado === 'seguimiento' ? '#f39c12' : '#2ecc71'
-                      }}>
-                        {rep.attributes.estado}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px' }}>{rep.attributes.categoria}</td>
-                    <td style={{ padding: '12px' }}><button style={{ padding: '5px 10px', cursor: 'pointer' }}>Gestionar</button></td>
-                  </tr>
-                ))}
+                {reportes.map(rep => {
+                  const estaVencido = verificarVencimiento(rep.attributes.sstgestions?.data) && rep.attributes.estado !== 'cerrado';
+                  
+                  return (
+                    <tr key={rep.id} style={{ borderBottom: '1px solid #ddd', cursor: 'pointer', backgroundColor: estaVencido ? '#fff3f3' : 'transparent' }} onClick={() => setCasoSeleccionado(rep)}>
+                      <td style={{ padding: '12px', fontWeight: 'bold' }}>{rep.id}</td>
+                      <td style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <img src={rep.attributes.colaborador_foto} alt="img" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
+                        <div>
+                          <span>{rep.attributes.colaborador_nombre}</span><br/>
+                          <small style={{ color: '#7f8c8d' }}>Doc: {rep.attributes.colaborador_documento}</small>
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{ 
+                          padding: '4px 8px', borderRadius: '12px', fontSize: '12px', color: 'white', fontWeight: 'bold', textTransform: 'uppercase',
+                          backgroundColor: rep.attributes.estado === 'abierto' ? '#e74c3c' : rep.attributes.estado === 'seguimiento' ? '#f39c12' : '#2ecc71'
+                        }}>
+                          {rep.attributes.estado}
+                        </span>
+                        {estaVencido && (
+                          <span style={{ marginLeft: '10px', backgroundColor: '#c0392b', color: 'white', fontSize: '10px', padding: '2px 5px', borderRadius: '5px' }}>⚠️ VENCIDO</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px' }}>{rep.attributes.categoria}</td>
+                      <td style={{ padding: '12px' }}><button style={{ padding: '5px 10px', cursor: 'pointer' }}>Gestionar</button></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -230,62 +294,71 @@ export default function VistaSST() {
       {/* MODAL DE GESTIÓN AVANZADA */}
       {casoSeleccionado && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', width: '90%', maxWidth: '850px', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', width: '90%', maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto' }}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #ecf0f1', paddingBottom: '10px' }}>
-              <h3 style={{ margin: 0, color: '#2c3e50' }}>Caso #{casoSeleccionado.id}</h3>
-              <button onClick={() => setCasoSeleccionado(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✖</button>
+              <h3 style={{ margin: 0, color: '#2c3e50' }}>Gestión de Expediente #{casoSeleccionado.id}</h3>
+              <button onClick={cerrarModal} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✖</button>
             </div>
 
-            {/* SECCIÓN CRUCE DE DATOS EN VIVO DESDE LA API BUK DE CREPES */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '20px' }}>
-              
               <div style={{ backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '8px', border: '1px solid #ddd' }}>
-                {cargandoCruceBuk ? <p>Consultando datos actualizados del empleado en Crepes...</p> : datosBukColaborador ? (
+                <h4 style={{ marginTop: 0, color: '#2980b9' }}>Información Médica (Buk en vivo)</h4>
+                {cargandoCruceBuk ? <p>Consultando datos actualizados...</p> : datosBukColaborador ? (
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '13px', lineHeight: '1.8' }}>
-                    <img src={datosBukColaborador.foto} alt={datosBukColaborador.nombre?.charAt(0)}  style={{ borderRadius: '99px', border: '1px solid #1abc9c', width: "50px" }} />
-                    <li>{datosBukColaborador.nombre}</li>
-                    <li>{datosBukColaborador.document_number}</li>
-                    <li>genero seleccionado por lider: {casoSeleccionado.attributes.genero}</li>
-                    <li><strong>Cargo</strong> {datosBukColaborador.cargo}</li>
-                    <li><strong>Área</strong> {datosBukColaborador.area_nombre}</li>
-                    <li><strong>Dirección</strong> {datosBukColaborador.direction}</li>
-                    <li><strong>Departamento </strong> {datosBukColaborador.departamento}</li>
-                    <li><strong>Ciudad</strong> {datosBukColaborador.ciudad}</li>
-                    <li><strong>Correo</strong> {datosBukColaborador.correo}</li>
-                    <li><strong>Celular</strong> {datosBukColaborador.Celular}</li>
-                    <li><strong>Edad</strong> {datosBukColaborador.birthday} ({calcularEdad(datosBukColaborador.birthday)} años)</li>
-                    <li><strong>Antigüedad</strong> {datosBukColaborador.ingreso} ({calcularAntiguedad(datosBukColaborador.ingreso)} años)</li>
+                    <li><strong>Nombre:</strong> {datosBukColaborador.nombre}</li>
+                    <li><strong>Cargo actual:</strong> {datosBukColaborador.cargo}</li>
+                    <li><strong>Área:</strong> {datosBukColaborador.area_nombre}</li>
+                    <li><strong>Celular:</strong> {datosBukColaborador.Celular}</li>
+                    <li><strong>Edad:</strong> {calcularEdad(datosBukColaborador.birthday)} años</li>
+                    <li><strong>Antigüedad:</strong> {calcularAntiguedad(datosBukColaborador.ingreso)} años</li>
                   </ul>
-                ) : <p style={{ color: 'red' }}>No se pudo cruzar la información con la API externa Buk.</p>}
+                ) : <p style={{ color: 'red' }}>No se pudo cruzar la información.</p>}
               </div>
 
-              {/* REPORTE ORIGINAL GUARDADO EN STRAPI */}
               <div style={{ backgroundColor: '#e8f6f3', padding: '15px', borderRadius: '8px', border: '1px solid #1abc9c', fontSize: '13px' }}>
-                <h4 style={{ marginTop: 0, color: '#16a085' }}>data reporte lider</h4>
-                <p>{casoSeleccionado.attributes.creador_reporte_nombre}</p>
-                <p><strong>Categoría</strong> {casoSeleccionado.attributes.categoria} </p>
-                <p><strong>Entidad</strong> {casoSeleccionado.attributes.tipo_entidad} - {casoSeleccionado.attributes.nombre_entidad}</p>
-                <p><strong>Relato del Líder:</strong> {casoSeleccionado.attributes.descripcion}</p>
-                <p><strong>Fecha Radicación:</strong> {new Date(casoSeleccionado.attributes.createdAt).toLocaleString()}</p>
+                <h4 style={{ marginTop: 0, color: '#16a085' }}>Reporte Original (Líder)</h4>
+                <p><strong>Emisor:</strong> {casoSeleccionado.attributes.creador_reporte_nombre}</p>
+                <p><strong>Categoría:</strong> {casoSeleccionado.attributes.categoria} / {casoSeleccionado.attributes.genero}</p>
+                <p><strong>Entidad:</strong> {casoSeleccionado.attributes.nombre_entidad}</p>
+                <p><strong>Relato:</strong> {casoSeleccionado.attributes.descripcion}</p>
               </div>
             </div>
 
-            {/* HISTORIAL DE SEGUIMIENTOS MÉDICOS */}
-            <h4 style={{ marginTop: '25px', borderBottom: '1px solid #ddd', paddingBottom: '5px' }}>Seguimientos Realizados</h4>
-            <div style={{ maxHeight: '150px', overflowY: 'auto', backgroundColor: '#fff', border: '1px solid #eee', padding: '10px', borderRadius: '5px' }}>
+            {/* HISTORIAL DE SEGUIMIENTOS */}
+            <h4 style={{ marginTop: '25px', borderBottom: '1px solid #ddd', paddingBottom: '5px' }}>Historial de Evoluciones</h4>
+            <div style={{ maxHeight: '200px', overflowY: 'auto', backgroundColor: '#fff', border: '1px solid #eee', padding: '10px', borderRadius: '5px' }}>
               {casoSeleccionado.attributes.sstgestions?.data?.length === 0 ? (
-                <p style={{ color: '#7f8c8d', fontSize: '13px', margin: 0 }}>Este caso no registra evoluciones previas.</p>
+                <p style={{ color: '#7f8c8d', fontSize: '13px', margin: 0 }}>Este caso no registra evoluciones.</p>
               ) : (
                 <ul style={{ paddingLeft: '15px', margin: 0, fontSize: '13px' }}>
                   {casoSeleccionado.attributes.sstgestions?.data?.map((gestion) => {
                     const attrs = gestion.attributes;
+                    const estaVencidoInd = attrs.temporalidad && dayjs().isAfter(dayjs(attrs.temporalidad), 'day');
+
                     return (
-                      <li key={gestion.id} style={{ marginBottom: '10px', borderBottom: '1px dashed #f1f1f1', paddingBottom: '5px' }}>
-                        <strong>{new Date(attrs.fecha_hora).toLocaleDateString()} <br /> Realizado por: {attrs.creador}</strong><br />
-                        <span>Acción: {attrs.accion_realizada} <br /> Sistema: {attrs.sistema_afectado}</span><br />
-                        <span>Peso: {attrs.peso_kg} kg <br /> Talla: {attrs.talla_m} m <br /> <strong>IMC: {calcularIMC(attrs.peso_kg, attrs.talla_m)}</strong></span><br />
-                        <span style={{ color: '#2c3e50' }}><strong>Diagnóstico:</strong> {attrs.diagnostico} <br /> {attrs.descripcion}</span>
+                      <li key={gestion.id} style={{ marginBottom: '15px', borderBottom: '1px dashed #f1f1f1', paddingBottom: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <strong>{new Date(attrs.fecha_hora).toLocaleDateString()} - {attrs.creador}</strong><br />
+                            <span>Acción: {attrs.accion_realizada} | Estado Registrado: <strong>{attrs.estado_registrado || 'N/A'}</strong></span><br />
+                            <span>Métricas: {attrs.peso_kg} kg / {attrs.talla_m} m — <strong>IMC: {calcularIMC(attrs.peso_kg, attrs.talla_m)}</strong></span><br />
+                            <span style={{ color: '#2c3e50' }}><strong>Diagnóstico:</strong> {attrs.diagnostico} - {attrs.descripcion}</span>
+                            
+                            {attrs.temporalidad && (
+                              <div style={{ marginTop: '5px' }}>
+                                <strong>Vencimiento: </strong> 
+                                <span style={{ color: estaVencidoInd ? '#c0392b' : '#27ae60', fontWeight: 'bold' }}>
+                                  {dayjs(attrs.temporalidad).format('DD/MM/YYYY')} {estaVencidoInd ? '(¡VENCIDO!)' : ''}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', gap: '5px' }}>
+                            <button onClick={() => handleEditarGestion(gestion)} style={{ padding: '3px 8px', fontSize: '11px', backgroundColor: '#f39c12', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Editar</button>
+                            <button onClick={() => handleEliminarGestion(gestion.id)} style={{ padding: '3px 8px', fontSize: '11px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>X</button>
+                          </div>
+                        </div>
                       </li>
                     );
                   })}
@@ -293,22 +366,32 @@ export default function VistaSST() {
               )}
             </div>
 
-            {/* BOTÓN DESPLEGABLE NUEVA GESTIÓN */}
             <button 
-              onClick={() => setMostrarFormSeguimiento(!mostrarFormSeguimiento)} 
+              onClick={() => {
+                setMostrarFormSeguimiento(!mostrarFormSeguimiento);
+                if (gestionEnEdicion) { setGestionEnEdicion(null); reset(); }
+              }} 
               style={{ marginTop: '15px', backgroundColor: '#3498db', color: 'white', padding: '8px 15px', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
             >
-              {mostrarFormSeguimiento ? "Ocultar Formulario" : "Registrar Seguimiento"}
+              {mostrarFormSeguimiento ? "Ocultar Formulario" : "+ Registrar Nuevo Seguimiento"}
             </button>
 
-            {/* FORMULARIO SEGUIMIENTO */}
+            {/* FORMULARIO DE SEGUIMIENTO Y EDICIÓN */}
             {mostrarFormSeguimiento && (
-              <form onSubmit={handleSubmit(onSubmitGestionSST)} style={{ marginTop: '15px', padding: '15px', backgroundColor: '#fafbfc', border: '1px dashed #bdc3c7', borderRadius: '8px' }}>
+              <form onSubmit={handleSubmit(onSubmitGestionSST)} style={{ marginTop: '15px', padding: '15px', backgroundColor: gestionEnEdicion ? '#fff9e6' : '#fafbfc', border: '1px dashed #bdc3c7', borderRadius: '8px' }}>
+                <h4 style={{ marginTop: 0, color: gestionEnEdicion ? '#d35400' : '#2c3e50' }}>
+                  {gestionEnEdicion ? "Editando Seguimiento" : "Nuevo Seguimiento"}
+                </h4>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', fontSize: '13px' }}>
-                  
                   <div>
-                    <label style={{ fontWeight: 'bold' }}>Fecha Evento (casos antiguos):</label>
+                    <label style={{ fontWeight: 'bold' }}>Fecha Evento:</label>
                     <input type="datetime-local" {...register('fechaHistorial')} style={{ width: '100%', padding: '6px', marginTop: '4px' }} />
+                  </div>
+
+                  <div>
+                    <label style={{ fontWeight: 'bold' }}>Temporalidad (Vencimiento, ej. fin incapacidad):</label>
+                    <input type="date" {...register('temporalidad')} style={{ width: '100%', padding: '6px', marginTop: '4px' }} />
                   </div>
 
                   <div>
@@ -340,36 +423,38 @@ export default function VistaSST() {
                   </div>
 
                   <div>
-                    <label style={{ fontWeight: 'bold' }}>Actualizar Estado General:</label>
+                    <label style={{ fontWeight: 'bold' }}>Actualizar Estado General del Caso:</label>
                     <select {...register('nuevoEstado', { required: true })} defaultValue={casoSeleccionado.attributes.estado} style={{ width: '100%', padding: '6px', marginTop: '4px' }}>
+                      <option value="abierto">Abierto</option>
                       <option value="seguimiento">En Seguimiento</option>
                       <option value="cerrado">Cerrado</option>
                     </select>
                   </div>
 
-                  <div>
-                    <label style={{ fontWeight: 'bold' }}>Peso (Kg):</label>
-                    <input type="number" step="0.1" {...register('pesoKg', { required: true })} placeholder="Ej: 70" style={{ width: '94%', padding: '6px', marginTop: '4px' }} />
-                  </div>
-
-                  <div>
-                    <label style={{ fontWeight: 'bold' }}>Talla (Metros):</label>
-                    <input type="number" step="0.01" {...register('tallaM', { required: true })} placeholder="Ej: 1.70" style={{ width: '94%', padding: '6px', marginTop: '4px' }} />
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontWeight: 'bold' }}>Peso (Kg):</label>
+                      <input type="number" step="0.1" {...register('pesoKg', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px' }} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontWeight: 'bold' }}>Talla (M):</label>
+                      <input type="number" step="0.01" {...register('tallaM', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px' }} />
+                    </div>
                   </div>
                 </div>
 
                 <div style={{ marginTop: '10px', fontSize: '13px' }}>
-                  <label style={{ fontWeight: 'bold' }}>Diagnóstico</label>
-                  <input type="text" {...register('diagnostico', { required: true })} placeholder="Escriba el diagnóstico" style={{ width: '98%', padding: '6px', marginTop: '4px' }} />
+                  <label style={{ fontWeight: 'bold' }}>Diagnóstico Médico:</label>
+                  <input type="text" {...register('diagnostico', { required: true })} style={{ width: '98%', padding: '6px', marginTop: '4px' }} />
                 </div>
 
                 <div style={{ marginTop: '10px', fontSize: '13px' }}>
-                  <label style={{ fontWeight: 'bold' }}>Descripción del Seguimiento:</label>
-                  <textarea {...register('descripcion', { required: true })} rows="3" style={{ width: '98%', padding: '6px', marginTop: '4px' }} placeholder="Escriba aquí los compromisos o hallazgos clínicos de este control..."></textarea>
+                  <label style={{ fontWeight: 'bold' }}>Evolución / Descripción:</label>
+                  <textarea {...register('descripcion', { required: true })} rows="3" style={{ width: '98%', padding: '6px', marginTop: '4px' }}></textarea>
                 </div>
 
-                <button type="submit" style={{ marginTop: '15px', backgroundColor: '#2ecc71', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '5px', cursor: 'pointer', width: '100%', fontWeight: 'bold' }}>
-                  Guardar
+                <button type="submit" style={{ marginTop: '15px', backgroundColor: gestionEnEdicion ? '#f39c12' : '#2ecc71', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '5px', cursor: 'pointer', width: '100%', fontWeight: 'bold' }}>
+                  {gestionEnEdicion ? "Actualizar Gestión" : "Guardar Gestión"}
                 </button>
               </form>
             )}
