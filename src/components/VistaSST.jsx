@@ -1,24 +1,50 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import dayjs from 'dayjs';
 import axios from 'axios';
-import { PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { 
+  PieChart, Pie, Cell, Tooltip, Legend, 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer 
+} from 'recharts';
+import "./VistaSST.css";
+import { BookOpenTextIcon, CircleX } from 'lucide-react';
 
 // --- CONSTANTES ---
 const API_BASE = 'https://macfer.crepesywaffles.com/api';
 const BUK_API = 'https://apialohav2.crepesywaffles.com/buk';
+const COLORES = ['#1abc9c', '#3498db', '#9b59b6', '#34495e', '#f1c40f', '#e67e22', '#e74c3c', '#95a5a6'];
 
 // --- FUNCIONES AUXILIARES ---
 const calcularEdad = (birthday) => birthday ? dayjs().diff(dayjs(birthday), 'year') : 'N/A';
 const calcularAntiguedad = (ingreso) => ingreso ? dayjs().diff(dayjs(ingreso), 'year') : 'N/A';
 const calcularIMC = (peso, talla) => (peso && talla) ? (peso / (talla * talla)).toFixed(2) : 'N/A';
+
 const verificarVencimiento = (gestionesData) => {
   if (!gestionesData || gestionesData.length === 0) return false;
   return gestionesData.some(g => {
     const temp = g.attributes.temporalidad;
     return temp && dayjs().isAfter(dayjs(temp), 'day');
   });
+};
+
+// Obtiene la gestión más reciente de un reporte para filtros y gráficos
+const obtenerUltimaGestion = (rep) => {
+  const gestiones = rep.attributes.sstgestions?.data;
+  if (!gestiones || gestiones.length === 0) return null;
+  return gestiones[gestiones.length - 1]?.attributes;
+};
+
+// Función para agrupar datos para los gráficos
+const contarFrecuencias = (data, accessor) => {
+  const counts = {};
+  data.forEach(item => {
+    const val = accessor(item) || 'Sin Datos';
+    counts[val] = (counts[val] || 0) + 1;
+  });
+  return Object.keys(counts)
+    .map(key => ({ name: key, value: counts[key] }))
+    .sort((a, b) => b.value - a.value); // Orden descendente
 };
 
 export default function VistaSST() {
@@ -31,6 +57,15 @@ export default function VistaSST() {
   const [cargandoCruceBuk, setCargandoCruceBuk] = useState(false);
   const [mostrarFormSeguimiento, setMostrarFormSeguimiento] = useState(false);
   const [gestionEnEdicion, setGestionEnEdicion] = useState(null);
+  
+  // --- ESTADOS DE FILTROS ---
+  const [filtroBusqueda, setFiltroBusqueda] = useState('');
+  const [filtroMisCasos, setFiltroMisCasos] = useState(false);
+  const [filtroVencidos, setFiltroVencidos] = useState(false);
+  const [filtroAccion, setFiltroAccion] = useState('');
+  const [filtroSistema, setFiltroSistema] = useState('');
+  const [filtroDiagnostico, setFiltroDiagnostico] = useState('');
+
   const { register, handleSubmit, reset, setValue } = useForm();
 
   // --- EFECTOS ---
@@ -74,7 +109,6 @@ export default function VistaSST() {
     if (casoSeleccionado && !datosBukColaborador) {
       const doc = casoSeleccionado.attributes.colaborador_documento;
       setCargandoCruceBuk(true);
-      // CORRECCIÓN: Uso correcto de template literals con backticks
       axios.get(`${BUK_API}/empleados3?documento=${doc}`)
         .then(res => {
           if (res.data.ok && res.data.data.length > 0) setDatosBukColaborador(res.data.data[0]);
@@ -84,28 +118,89 @@ export default function VistaSST() {
     }
   }, [casoSeleccionado]);
 
-  // --- MÉTRICAS (KPIs) ---
+  // --- LÓGICA DE FILTRADO ---
+  const reportesFiltrados = useMemo(() => {
+    return reportes.filter(rep => {
+      const attrs = rep.attributes;
+      const ultGestion = obtenerUltimaGestion(rep);
+      const estaVencido = verificarVencimiento(attrs.sstgestions?.data);
+
+      // 1. Búsqueda por texto libre
+      if (filtroBusqueda) {
+        const str = `${rep.id} ${attrs.colaborador_nombre} ${attrs.colaborador_documento}`.toLowerCase();
+        if (!str.includes(filtroBusqueda.toLowerCase())) return false;
+      }
+      // 2. Mis Casos
+      if (filtroMisCasos) {
+        if (attrs.creador_reporte_nombre !== sst?.nombre && ultGestion?.creador !== sst?.nombre) return false;
+      }
+      // 3. Vencidos
+      if (filtroVencidos && (!estaVencido || attrs.estado === 'cerrado')) return false;
+      // 4. Acción Realizada
+      if (filtroAccion && ultGestion?.accion_realizada !== filtroAccion) return false;
+      // 5. Sistema Afectado
+      if (filtroSistema && ultGestion?.sistema_afectado !== filtroSistema) return false;
+      // 6. Diagnóstico
+      if (filtroDiagnostico && (!ultGestion?.diagnostico || !ultGestion.diagnostico.toLowerCase().includes(filtroDiagnostico.toLowerCase()))) return false;
+
+      return true;
+    });
+  }, [reportes, filtroBusqueda, filtroMisCasos, filtroVencidos, filtroAccion, filtroSistema, filtroDiagnostico, sst]);
+
+  // --- MÉTRICAS Y GRÁFICOS (Basados en resultados filtrados) ---
   const metricas = {
-    abiertos: reportes.filter(r => r.attributes.estado === 'abierto').length,
-    seguimiento: reportes.filter(r => r.attributes.estado === 'seguimiento').length,
-    cerrados: reportes.filter(r => r.attributes.estado === 'cerrado').length,
-    total: reportes.length
+    abiertos: reportesFiltrados.filter(r => r.attributes.estado === 'abierto').length,
+    seguimiento: reportesFiltrados.filter(r => r.attributes.estado === 'seguimiento').length,
+    cerrados: reportesFiltrados.filter(r => r.attributes.estado === 'cerrado').length,
+    total: reportesFiltrados.length
   };
 
-  const datosGraficoPie = [
+  const datosEstado = [
     { name: 'Abiertos', value: metricas.abiertos, color: '#e74c3c' },
     { name: 'En Seguimiento', value: metricas.seguimiento, color: '#f39c12' },
     { name: 'Cerrados', value: metricas.cerrados, color: '#2ecc71' }
   ];
+
+  const datosEntidad = contarFrecuencias(reportesFiltrados, r => r.attributes.nombre_entidad);
+  const datosGenero = contarFrecuencias(reportesFiltrados, r => r.attributes.genero);
+  const datosAccion = contarFrecuencias(reportesFiltrados, r => obtenerUltimaGestion(r)?.accion_realizada);
+  const datosSistema = contarFrecuencias(reportesFiltrados, r => obtenerUltimaGestion(r)?.sistema_afectado);
+  const datosDiagnostico = contarFrecuencias(reportesFiltrados, r => obtenerUltimaGestion(r)?.diagnostico);
+  
+  // (Nota: Edad y Antigüedad requieren datos locales. Mostramos lo que haya en 'attributes' si existe)
+  const datosEdad = contarFrecuencias(reportesFiltrados, r => r.attributes.edad ? `${r.attributes.edad} años` : null);
+
+  // Cálculo especial para IMC
+  const calcularGraficoIMC = () => {
+    let bajo = 0, normal = 0, sobrepeso = 0, obesidad = 0, sinDatos = 0;
+    reportesFiltrados.forEach(rep => {
+      const ult = obtenerUltimaGestion(rep);
+      const imcStr = calcularIMC(ult?.peso_kg, ult?.talla_m);
+      if (imcStr === 'N/A') { sinDatos++; return; }
+      const imc = parseFloat(imcStr);
+      if (imc < 18.5) bajo++;
+      else if (imc < 25) normal++;
+      else if (imc < 30) sobrepeso++;
+      else obesidad++;
+    });
+    return [
+      { name: 'Bajo Peso', value: bajo }, { name: 'Normal', value: normal },
+      { name: 'Sobrepeso', value: sobrepeso }, { name: 'Obesidad', value: obesidad }
+    ].filter(d => d.value > 0);
+  };
+  const datosIMC = calcularGraficoIMC();
+
+  // Opciones únicas para selects de filtros
+  const opcionesAcciones = [...new Set(reportes.map(r => obtenerUltimaGestion(r)?.accion_realizada).filter(Boolean))];
+  const opcionesSistemas = [...new Set(reportes.map(r => obtenerUltimaGestion(r)?.sistema_afectado).filter(Boolean))];
 
   // --- HANDLERS ---
   const handleEditarGestion = (gestion) => {
     setGestionEnEdicion(gestion);
     setMostrarFormSeguimiento(true);
     const attrs = gestion.attributes;
-    const fechaHoraFormateada = attrs.fecha_hora ? dayjs(attrs.fecha_hora).format('YYYY-MM-DDTHH:mm') : '';
-
-    setValue('fechaHistorial', fechaHoraFormateada);
+    
+    setValue('fechaHistorial', attrs.fecha_hora ? dayjs(attrs.fecha_hora).format('YYYY-MM-DD') : '');
     setValue('accion', attrs.accion_realizada);
     setValue('sistema', attrs.sistema_afectado);
     setValue('nuevoEstado', attrs.estado_registrado || casoSeleccionado.attributes.estado);
@@ -119,7 +214,6 @@ export default function VistaSST() {
   const handleEliminarGestion = async (id) => {
     if (window.confirm("¿Seguro que desea eliminar este seguimiento?")) {
       try {
-        // CORRECCIÓN: Uso correcto de template literals con backticks
         await axios.delete(`${API_BASE}/sstgestions/${id}`);
         alert("Seguimiento eliminado");
         cargarReportesSST();
@@ -184,219 +278,350 @@ export default function VistaSST() {
     navigate('/login');
   };
 
-  // --- RENDERIZADO CONDICIONAL DE CARGA ---
-  if (!sst) return <p style={{ padding: '20px' }}>Cargando panel operacional...</p>;
-
-  // --- SUBCOMPONENTES (Para mantener el render principal limpio) ---
-  const renderKPIs = () => (
-    <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
-      <div style={{ flex: 1, backgroundColor: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-        <h2 style={{ margin: 0 }}>{metricas.total}</h2>
-        <small style={{ color: '#7f8c8d' }}>Casos Radicados</small>
-      </div>
-      <div style={{ flex: 1, backgroundColor: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center', borderBottom: '4px solid #e74c3c' }}>
-        <h2 style={{ margin: 0, color: '#e74c3c' }}>{metricas.abiertos}</h2>
-        <small style={{ color: '#7f8c8d' }}>Abiertos</small>
-      </div>
-      <div style={{ flex: 1, backgroundColor: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center', borderBottom: '4px solid #f39c12' }}>
-        <h2 style={{ margin: 0, color: '#f39c12' }}>{metricas.seguimiento}</h2>
-        <small style={{ color: '#7f8c8d' }}>En Seguimiento</small>
-      </div>
-      <div style={{ flex: 1, backgroundColor: 'white', padding: '20px', borderRadius: '8px', textAlign: 'center', borderBottom: '4px solid #2ecc71' }}>
-        <h2 style={{ margin: 0, color: '#2ecc71' }}>{metricas.cerrados}</h2>
-        <small style={{ color: '#7f8c8d' }}>Cerrados</small>
-      </div>
+  // --- COMPONENTES AUXILIARES ---
+  const CustomBarChart = ({ data, title }) => (
+    <div className="sst-chart-card">
+      <h4>{title}</h4>
+      {data.length > 0 ? (
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={data.slice(0, 5)} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+            <XAxis type="number" />
+            <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 11}} />
+            <Tooltip />
+            <Bar dataKey="value" fill="#3498db" radius={[0, 4, 4, 0]}>
+              {data.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORES[index % COLORES.length]} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      ) : <p>No hay datos</p>}
     </div>
   );
 
+  if (!sst) return <p style={{textAlign: 'center', marginTop: '2rem'}}>Cargando panel operacional...</p>;
+
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px', backgroundColor: '#f4f6f8', minHeight: '100vh' }}>
+    <div className="sst-wrapper">
       
       {/* NAVBAR */}
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#16a085', color: 'white', padding: '10px 20px', borderRadius: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <img src={sst.foto} alt={sst.nombre} style={{ width: '45px', height: '45px', borderRadius: '50%', objectFit: 'cover' }} />
+      <nav className="sst-navbar">
+        <div className="sst-navbar-user">
+          <img src={sst.foto} alt={sst.nombre} />
           <div>
-            <h4 style={{ margin: 0 }}>{sst.nombre}</h4>
+            <h4>{sst.nombre}</h4>
             <small>Analista SST - {sst.ciudad}</small>
           </div>
         </div>
-        <button onClick={cerrarSesion} style={{ backgroundColor: '#c0392b', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer' }}>Salir</button>
+        <button className="sst-btn-logout" onClick={cerrarSesion}>Salir</button>
       </nav>
 
-      {cargandoGlobal ? <p style={{ marginTop: '20px' }}>Cargando métricas y reportes globales...</p> : (
-        <>
-          {renderKPIs()}
+      <div className="sst-container">
+        {cargandoGlobal ? <p>Cargando información del servidor...</p> : (
+          <>
+            {/* BARRA DE FILTROS */}
+            <div className="sst-filters">
+              <input 
+                type="text" placeholder="🔍 Buscar ID, Nombre o Documento..." 
+                value={filtroBusqueda} onChange={e => setFiltroBusqueda(e.target.value)}
+              />
+              
+              <select value={filtroAccion} onChange={e => setFiltroAccion(e.target.value)}>
+                <option value="">Todas las Acciones</option>
+                {opcionesAcciones.map(acc => <option key={acc} value={acc}>{acc}</option>)}
+              </select>
 
-          {/* GRÁFICO */}
-          <div style={{ display: 'flex', justifyContent: 'center', backgroundColor: 'white', padding: '20px', borderRadius: '8px', marginTop: '20px' }}>
-            <div>
-              <h4 style={{ margin: '0 0 10px 0', textAlign: 'center', color: '#2c3e50' }}>Distribución Porcentual por Estado</h4>
-              <PieChart width={320} height={220}>
-                <Pie data={datosGraficoPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70}>
-                  {datosGraficoPie.map((entry, idx) => <Cell key={`cell-${idx}`} fill={entry.color} />)}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
+              <select value={filtroSistema} onChange={e => setFiltroSistema(e.target.value)}>
+                <option value="">Todos los Sistemas</option>
+                {opcionesSistemas.map(sis => <option key={sis} value={sis}>{sis}</option>)}
+              </select>
+
+              <input 
+                type="text" placeholder="Diagnóstico médico..." 
+                value={filtroDiagnostico} onChange={e => setFiltroDiagnostico(e.target.value)}
+              />
+
+              <label>
+                <input type="checkbox" checked={filtroMisCasos} onChange={e => setFiltroMisCasos(e.target.checked)} /> Mis Casos
+              </label>
+
+              <label>
+                <input type="checkbox" checked={filtroVencidos} onChange={e => setFiltroVencidos(e.target.checked)} /> ⚠️ Solo Vencidos
+              </label>
             </div>
-          </div>
 
-          {/* TABLA PRINCIPAL */}
-          <div style={{ marginTop: '20px', backgroundColor: 'white', padding: '20px', borderRadius: '8px' }}>
-            <h3 style={{ color: '#2c3e50', marginTop: 0 }}>Historial General de Reportes</h3>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#ecf0f1' }}>
-                  <th style={{ padding: '12px' }}>ID</th>
-                  <th style={{ padding: '12px' }}>Colaborador afectado</th>
-                  <th style={{ padding: '12px' }}>Estado actual</th>
-                  <th style={{ padding: '12px' }}>Categoría</th>
-                  <th style={{ padding: '12px' }}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reportes.map(rep => {
-                  const estaVencido = verificarVencimiento(rep.attributes.sstgestions?.data) && rep.attributes.estado !== 'cerrado';
-                  
-                  return (
-                    <tr key={rep.id} style={{ borderBottom: '1px solid #ddd', cursor: 'pointer', backgroundColor: estaVencido ? '#fff3f3' : 'transparent' }} onClick={() => setCasoSeleccionado(rep)}>
-                      <td style={{ padding: '12px', fontWeight: 'bold' }}>{rep.id}</td>
-                      <td style={{ padding: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <img src={rep.attributes.colaborador_foto} alt="img" style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }} />
-                        <div>
-                          <span>{rep.attributes.colaborador_nombre}</span><br/>
-                          <small style={{ color: '#7f8c8d' }}>Doc: {rep.attributes.colaborador_documento}</small>
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px' }}>
-                        <span style={{ 
-                          padding: '4px 8px', borderRadius: '12px', fontSize: '12px', color: 'white', fontWeight: 'bold', textTransform: 'uppercase',
-                          backgroundColor: rep.attributes.estado === 'abierto' ? '#e74c3c' : rep.attributes.estado === 'seguimiento' ? '#f39c12' : '#2ecc71'
-                        }}>
-                          {rep.attributes.estado}
-                        </span>
-                        {estaVencido && (
-                          <span style={{ marginLeft: '10px', backgroundColor: '#c0392b', color: 'white', fontSize: '10px', padding: '2px 5px', borderRadius: '5px' }}>⚠️ VENCIDO</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '12px' }}>{rep.attributes.categoria}</td>
-                      <td style={{ padding: '12px' }}><button style={{ padding: '5px 10px', cursor: 'pointer' }}>Gestionar</button></td>
+            {/* KPIs */}
+            <div className="sst-kpis">
+              <div className="sst-kpi-card">
+                <h2>{metricas.total}</h2><small>Casos (Filtrados)</small>
+              </div>
+              <div className="sst-kpi-card" style={{borderBottomColor: 'var(--danger)'}}>
+                <h2>{metricas.abiertos}</h2><small>Abiertos</small>
+              </div>
+              <div className="sst-kpi-card" style={{borderBottomColor: 'var(--warning)'}}>
+                <h2>{metricas.seguimiento}</h2><small>En Seguimiento</small>
+              </div>
+              <div className="sst-kpi-card" style={{borderBottomColor: 'var(--success)'}}>
+                <h2>{metricas.cerrados}</h2><small>Cerrados</small>
+              </div>
+            </div>
+
+            {/* PANEL DE GRÁFICOS */}
+            <div className="sst-charts-grid">
+              
+              {/* Gráfico de Estado (Circular) */}
+              <div className="sst-chart-card">
+                <h4>Estado General</h4>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={datosEstado} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70}>
+                      {datosEstado.map((entry, idx) => <Cell key={`cell-${idx}`} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip />
+                    <Legend iconType="circle" wrapperStyle={{fontSize: '12px'}} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              <CustomBarChart data={datosIMC} title="Distribución por IMC" />
+              <CustomBarChart data={datosSistema} title="Sistemas Afectados" />
+              <CustomBarChart data={datosAccion} title="Acciones Frecuentes" />
+              <CustomBarChart data={datosEntidad} title="Entidades" />
+              <CustomBarChart data={datosGenero} title="Distribución de Género" />
+              <CustomBarChart data={datosDiagnostico} title="Top 5 Diagnósticos" />
+            </div>
+
+            {/* TABLA PRINCIPAL */}
+            <div className="sst-table-section">
+              <h3>Listado de Reportes</h3>
+              <div className="sst-table-responsive">
+                <table className="sst-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Colaborador</th>
+                      <th>Estado</th>
+                      <th>Última Acción</th>
+                      <th>Acciones</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      {/* MODAL DE GESTIÓN AVANZADA */}
-      {casoSeleccionado && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '8px', width: '90%', maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto' }}>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #ecf0f1', paddingBottom: '10px' }}>
-              <h3 style={{ margin: 0, color: '#2c3e50' }}>Gestión de Expediente #{casoSeleccionado.id}</h3>
-              <button onClick={cerrarModal} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✖</button>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '20px' }}>
-              <div style={{ backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '8px', border: '1px solid #ddd' }}>
-                <h4 style={{ marginTop: 0, color: '#2980b9' }}>Información Médica (Buk en vivo)</h4>
-                {cargandoCruceBuk ? <p>Consultando datos actualizados...</p> : datosBukColaborador ? (
-                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '13px', lineHeight: '1.8' }}>
-                    <li><strong>Nombre:</strong> {datosBukColaborador.nombre}</li>
-                    <li><strong>Cargo actual:</strong> {datosBukColaborador.cargo}</li>
-                    <li><strong>Área:</strong> {datosBukColaborador.area_nombre}</li>
-                    <li><strong>Celular:</strong> {datosBukColaborador.Celular}</li>
-                    <li><strong>Edad:</strong> {calcularEdad(datosBukColaborador.birthday)} años</li>
-                    <li><strong>Antigüedad:</strong> {calcularAntiguedad(datosBukColaborador.ingreso)} años</li>
-                  </ul>
-                ) : <p style={{ color: 'red' }}>No se pudo cruzar la información.</p>}
-              </div>
-
-              <div style={{ backgroundColor: '#e8f6f3', padding: '15px', borderRadius: '8px', border: '1px solid #1abc9c', fontSize: '13px' }}>
-                <h4 style={{ marginTop: 0, color: '#16a085' }}>Reporte Original (Líder)</h4>
-                <p><strong>Emisor:</strong> {casoSeleccionado.attributes.creador_reporte_nombre}</p>
-                <p><strong>Categoría:</strong> {casoSeleccionado.attributes.categoria} / {casoSeleccionado.attributes.genero}</p>
-                <p><strong>Entidad:</strong> {casoSeleccionado.attributes.nombre_entidad}</p>
-                <p><strong>Relato:</strong> {casoSeleccionado.attributes.descripcion}</p>
-              </div>
-            </div>
-
-            {/* HISTORIAL DE SEGUIMIENTOS */}
-            <h4 style={{ marginTop: '25px', borderBottom: '1px solid #ddd', paddingBottom: '5px' }}>Historial de Evoluciones</h4>
-            <div style={{ maxHeight: '200px', overflowY: 'auto', backgroundColor: '#fff', border: '1px solid #eee', padding: '10px', borderRadius: '5px' }}>
-              {casoSeleccionado.attributes.sstgestions?.data?.length === 0 ? (
-                <p style={{ color: '#7f8c8d', fontSize: '13px', margin: 0 }}>Este caso no registra evoluciones.</p>
-              ) : (
-                <ul style={{ paddingLeft: '15px', margin: 0, fontSize: '13px' }}>
-                  {casoSeleccionado.attributes.sstgestions?.data?.map((gestion) => {
-                    const attrs = gestion.attributes;
-                    const estaVencidoInd = attrs.temporalidad && dayjs().isAfter(dayjs(attrs.temporalidad), 'day');
-
-                    return (
-                      <li key={gestion.id} style={{ marginBottom: '15px', borderBottom: '1px dashed #f1f1f1', paddingBottom: '10px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div>
-                            <strong>{new Date(attrs.fecha_hora).toLocaleDateString()} - {attrs.creador}</strong><br />
-                            <span>Acción: {attrs.accion_realizada} | Estado Registrado: <strong>{attrs.estado_registrado || 'N/A'}</strong></span><br />
-                            <span>Métricas: {attrs.peso_kg} kg / {attrs.talla_m} m — <strong>IMC: {calcularIMC(attrs.peso_kg, attrs.talla_m)}</strong></span><br />
-                            <span style={{ color: '#2c3e50' }}><strong>Diagnóstico:</strong> {attrs.diagnostico} - {attrs.descripcion}</span>
-                            
-                            {attrs.temporalidad && (
-                              <div style={{ marginTop: '5px' }}>
-                                <strong>Vencimiento: </strong> 
-                                <span style={{ color: estaVencidoInd ? '#c0392b' : '#27ae60', fontWeight: 'bold' }}>
-                                  {dayjs(attrs.temporalidad).format('DD/MM/YYYY')} {estaVencidoInd ? '(¡VENCIDO!)' : ''}
-                                </span>
+                  </thead>
+                  <tbody>
+                    {reportesFiltrados.length === 0 ? (
+                      <tr><td colSpan="5" style={{textAlign: 'center', padding: '2rem'}}>No hay resultados que coincidan con los filtros.</td></tr>
+                    ) : (
+                      reportesFiltrados.map(rep => {
+                        const estaVencido = verificarVencimiento(rep.attributes.sstgestions?.data) && rep.attributes.estado !== 'cerrado';
+                        const ultGestion = obtenerUltimaGestion(rep);
+                        
+                        return (
+                          <tr key={rep.id} onClick={() => setCasoSeleccionado(rep)}>
+                            <td><strong>#{rep.id}</strong></td>
+                            <td>
+                              <div className="sst-user-cell">
+                                <img src={rep.attributes.colaborador_foto} alt="img" />
+                                <div>
+                                  <span>{rep.attributes.colaborador_nombre}</span><br/>
+                                  <small>Doc: {rep.attributes.colaborador_documento}</small>
+                                </div>
                               </div>
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', gap: '5px' }}>
-                            <button onClick={() => handleEditarGestion(gestion)} style={{ padding: '3px 8px', fontSize: '11px', backgroundColor: '#f39c12', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>Editar</button>
-                            <button onClick={() => handleEliminarGestion(gestion.id)} style={{ padding: '3px 8px', fontSize: '11px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>X</button>
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+                            </td>
+                            <td>
+                              <span style={{ 
+                                padding: '4px 10px', borderRadius: '12px', fontSize: '11px', color: 'white', fontWeight: 'bold', textTransform: 'uppercase',
+                                backgroundColor: rep.attributes.estado === 'abierto' ? 'var(--danger)' : rep.attributes.estado === 'seguimiento' ? 'var(--warning)' : 'var(--success)'
+                              }}>
+                                {rep.attributes.estado}
+                              </span>
+                              {estaVencido && (
+                                <span style={{display: 'block', fontSize: '11px', marginTop: '4px', color: 'var(--danger)'}}>⚠️ VENCIDO</span>
+                              )}
+                            </td>
+                            <td>
+                              {ultGestion ? (
+                                <>
+                                  <span>{ultGestion.accion_realizada}</span><br/>
+                                  <small style={{color: 'var(--text-muted)'}}>{dayjs(ultGestion.fecha_hora).format('DD/MM/YY')}</small>
+                                </>
+                              ) : <span style={{color: '#999'}}>Sin gestión</span>}
+                            </td>
+                            <td><button className="sst-btn-action">Abrir</button></td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
+          </>
+        )}
+      </div>
 
-            <button 
-              onClick={() => {
-                setMostrarFormSeguimiento(!mostrarFormSeguimiento);
-                if (gestionEnEdicion) { setGestionEnEdicion(null); reset(); }
-              }} 
-              style={{ marginTop: '15px', backgroundColor: '#3498db', color: 'white', padding: '8px 15px', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
-            >
-              {mostrarFormSeguimiento ? "Ocultar Formulario" : "+ Registrar Nuevo Seguimiento"}
-            </button>
+      {/* MODAL DE GESTIÓN AVANZADA (SLIDE MODAL) */}
+{casoSeleccionado && (
+  <div className="sst-modal-overlay" onClick={cerrarModal}>
+    {/* Evitamos que los clicks dentro del modal lo cierren */}
+    <div className="sst-modal-content" onClick={(e) => e.stopPropagation()}>
+      
+      {/* ================= COLUMNA IZQUIERDA: PERFIL ================= */}
+      <div className="sst-modal-sidebar">
+        {cargandoCruceBuk ? (
+          <p>Consultando datos de Buk...</p>
+        ) : datosBukColaborador ? (
+          <>
+            <img 
+              className="sst-sidebar-avatar" 
+              src={datosBukColaborador.foto || casoSeleccionado.attributes.colaborador_foto} 
+              alt="Colaborador" 
+            />
+            <h3 className="sst-sidebar-name">{datosBukColaborador.nombre}</h3>
+            <p className="sst-sidebar-uid">{datosBukColaborador.document_number}</p>
+            <p className="sst-sidebar-gender">{casoSeleccionado.attributes.genero || 'No especificado'}</p>
 
-            {/* FORMULARIO DE SEGUIMIENTO Y EDICIÓN */}
-            {mostrarFormSeguimiento && (
-              <form onSubmit={handleSubmit(onSubmitGestionSST)} style={{ marginTop: '15px', padding: '15px', backgroundColor: gestionEnEdicion ? '#fff9e6' : '#fafbfc', border: '1px dashed #bdc3c7', borderRadius: '8px' }}>
-                <h4 style={{ marginTop: 0, color: gestionEnEdicion ? '#d35400' : '#2c3e50' }}>
-                  {gestionEnEdicion ? "Editando Seguimiento" : "Nuevo Seguimiento"}
-                </h4>
+            {/* Ficha técnica estructurada */}
+            <div className="sst-sidebar-card">
+              <div className="sst-sidebar-row">
+                <span className="sst-row-label">Área<br/>Cargo</span>
+                <span className="sst-row-value">
+                  {datosBukColaborador.area_nombre}<br/>
+                  <strong>{datosBukColaborador.cargo}</strong>
+                </span>
+              </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', fontSize: '13px' }}>
-                  <div>
-                    <label style={{ fontWeight: 'bold' }}>Fecha Evento:</label>
-                    <input type="datetime-local" {...register('fechaHistorial')} style={{ width: '100%', padding: '6px', marginTop: '4px' }} />
+              <div className="sst-sidebar-row">
+                <span className="sst-row-label">Dirección<br/>Departamento</span>
+                <span className="sst-row-value">
+                  {datosBukColaborador.direction || 'N/A'}<br/>
+                  {datosBukColaborador.departamento}
+                </span>
+              </div>
+
+              <div className="sst-sidebar-row">
+                <span className="sst-row-label">Nacimiento</span>
+                <span className="sst-row-value">
+                  {datosBukColaborador.birthday} ({calcularEdad(datosBukColaborador.birthday)} años)
+                </span>
+              </div>
+
+              <div className="sst-sidebar-row">
+                <span className="sst-row-label">Ingreso</span>
+                <span className="sst-row-value">{datosBukColaborador.ingreso || 'N/A'}</span>
+              </div>
+
+              <div className="sst-sidebar-row">
+                <span className="sst-row-label">Correo<br/>Celular</span>
+                <span className="sst-row-value">
+                  {datosBukColaborador.correo}<br/>
+                  {datosBukColaborador.Celular || 'N/A'}
+                </span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <p>No se pudo cruzar la información con Buk.</p>
+        )}
+      </div>
+
+      {/* ================= COLUMNA DERECHA: CONTENIDO ================= */}
+      <div className="sst-modal-main">
+        
+        {/* Cabecera del Reporte */}
+        <div className="sst-main-header">
+          <div className="sst-header-title-area">
+            <h2>Reporte #{casoSeleccionado.id}</h2>
+            <span className="sst-badge-estado">
+              {casoSeleccionado.attributes.estado}
+            </span>
+          </div>
+          <button className="sst-btn-close-circle" onClick={cerrarModal}>
+            <CircleX />
+          </button>
+        </div>
+
+        {/* Bloque central escroleable */}
+        <div className="sst-main-scrollable">
+          
+          {/* Caja con la descripción original y autoría */}
+          <div className="sst-box-descripcion">
+            <p style={{ marginBottom: '1rem', color: '#64748b', fontSize: '0.85rem' }}>
+              Creado por <strong>{casoSeleccionado.attributes.creador_reporte_nombre}</strong> el {casoSeleccionado.attributes.fecha_creacion_manual || new Date(casoSeleccionado.attributes.createdAt).toLocaleString()}
+            </p>
+            <p>
+              Se registra un reporte de <strong>{casoSeleccionado.attributes.categoria || 'SST'}</strong> para la entidad <strong>{casoSeleccionado.attributes.tipo_entidad} {casoSeleccionado.attributes.nombre_entidad}</strong>.
+            </p>
+            <p style={{ marginTop: '0.5rem', italic: 'true' }}>
+              "{casoSeleccionado.attributes.descripcion}"
+            </p>
+          </div>
+
+          {/* Historial de Seguimientos */}
+          <h4 className="sst-section-title">Historial de Seguimientos</h4>
+          
+          {casoSeleccionado.attributes.sstgestions?.data?.length === 0 ? (
+            <p className="sst-no-data">No hay seguimientos registrados aún para esta novedad</p>
+          ) : (
+            <ul className="sst-history-list">
+              {casoSeleccionado.attributes.sstgestions?.data?.map((gestion) => {
+                const attrs = gestion.attributes;
+                const estaVencidoInd = attrs.temporalidad && dayjs().isAfter(dayjs(attrs.temporalidad), 'day');
+
+                return (
+                  <li key={gestion.id} className="sst-history-item">
+                    <div>
+                      <strong>{dayjs(attrs.fecha_hora).format('DD/MM/YYYY')} - {attrs.creador}</strong><br />
+                      <span>Acción: {attrs.accion_realizada} | Estado: <strong>{attrs.estado_registrado || 'N/A'}</strong></span><br />
+                      <span>Métricas: {attrs.peso_kg} kg / {attrs.talla_m} m — <strong>IMC: {calcularIMC(attrs.peso_kg, attrs.talla_m)}</strong></span><br />
+                      <span><strong>Diagnóstico:</strong> {attrs.diagnostico} - {attrs.descripcion}</span>
+                      
+                      {attrs.temporalidad && (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          <strong>Vencimiento: </strong> 
+                          <span style={{ color: estaVencidoInd ? 'var(--danger)' : 'inherit' }}>
+                            {dayjs(attrs.temporalidad).format('DD/MM/YYYY')} {estaVencidoInd ? '(¡VENCIDO!)' : ''}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="sst-history-actions">
+                      <button onClick={() => handleEditarGestion(gestion)}>✏️ Editar</button>
+                      <button onClick={() => handleEliminarGestion(gestion.id)} style={{ color: 'var(--danger)' }}>🗑️</button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Sección Acordeón Inferior: Agregar Seguimiento */}
+        <div className="sst-footer-accordion">
+          <div 
+            className="sst-accordion-header" 
+            onClick={() => {
+              setMostrarFormSeguimiento(!mostrarFormSeguimiento);
+              if (gestionEnEdicion) { setGestionEnEdicion(null); reset(); }
+            }}
+          >
+            <h4>{gestionEnEdicion ? "✏️ Editando Seguimiento" : "Agregar Nuevo Seguimiento"}</h4>
+            <span className="sst-accordion-icon">
+              {mostrarFormSeguimiento ? '🔼' : '🔽'}
+            </span>
+          </div>
+
+          {mostrarFormSeguimiento && (
+            <div className="sst-form-container" style={{ marginTop: '1rem' }}>
+              <form onSubmit={handleSubmit(onSubmitGestionSST)}>
+                <div className="sst-form-grid">
+                  <div className="sst-form-group">
+                    <label>Fecha Evento:</label>
+                    <input type="date" {...register('fechaHistorial')} />
                   </div>
-
-                  <div>
-                    <label style={{ fontWeight: 'bold' }}>Temporalidad (Vencimiento, ej. fin incapacidad):</label>
-                    <input type="date" {...register('temporalidad')} style={{ width: '100%', padding: '6px', marginTop: '4px' }} />
+                  <div className="sst-form-group">
+                    <label>Temporalidad (Vencimiento):</label>
+                    <input type="date" {...register('temporalidad')} />
                   </div>
-
-                  <div>
-                    <label style={{ fontWeight: 'bold' }}>Acción Realizada:</label>
-                    <select {...register('accion', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px' }}>
+                  <div className="sst-form-group">
+                    <label>Acción Realizada:</label>
+                    <select {...register('accion', { required: true })}>
                       <option value="compromiso">Compromiso de autocuidado</option>
                       <option value="acta">Acta de seguimiento</option>
                       <option value="lonchera">Autorización de Lonchera</option>
@@ -406,10 +631,9 @@ export default function VistaSST() {
                       <option value="otro">Otro</option>
                     </select>
                   </div>
-
-                  <div>
-                    <label style={{ fontWeight: 'bold' }}>Sistema Afectado:</label>
-                    <select {...register('sistema', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px' }}>
+                  <div className="sst-form-group">
+                    <label>Sistema Afectado:</label>
+                    <select {...register('sistema', { required: true })}>
                       <option value="cardiovascular">Cardiovascular</option>
                       <option value="dermatologica">Dermatológica</option>
                       <option value="gastrointestinal">Gastrointestinal</option>
@@ -421,47 +645,50 @@ export default function VistaSST() {
                       <option value="otro">Otro</option>
                     </select>
                   </div>
-
-                  <div>
-                    <label style={{ fontWeight: 'bold' }}>Actualizar Estado General del Caso:</label>
-                    <select {...register('nuevoEstado', { required: true })} defaultValue={casoSeleccionado.attributes.estado} style={{ width: '100%', padding: '6px', marginTop: '4px' }}>
-                      <option value="abierto">Abierto</option>
+                  <div className="sst-form-group">
+                    <label>Actualizar Estado General:</label>
+                    <select {...register('nuevoEstado', { required: true })} defaultValue={casoSeleccionado.attributes.estado}>
                       <option value="seguimiento">En Seguimiento</option>
                       <option value="cerrado">Cerrado</option>
                     </select>
                   </div>
-
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontWeight: 'bold' }}>Peso (Kg):</label>
-                      <input type="number" step="0.1" {...register('pesoKg', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px' }} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontWeight: 'bold' }}>Talla (M):</label>
-                      <input type="number" step="0.01" {...register('tallaM', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px' }} />
+                  <div className="sst-form-group">
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 600 }}>Peso (Kg):</label>
+                        <input type="number" step="0.1" style={{ width: '100%', padding: '0.6rem' }} {...register('pesoKg', { required: true })} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 600 }}>Talla (M):</label>
+                        <input type="number" step="0.01" style={{ width: '100%', padding: '0.6rem' }} {...register('tallaM', { required: true })} />
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div style={{ marginTop: '10px', fontSize: '13px' }}>
-                  <label style={{ fontWeight: 'bold' }}>Diagnóstico Médico:</label>
-                  <input type="text" {...register('diagnostico', { required: true })} style={{ width: '98%', padding: '6px', marginTop: '4px' }} />
+                <div className="sst-form-group" style={{ marginBottom: '1rem' }}>
+                  <label>Diagnóstico Médico:</label>
+                  <input type="text" {...register('diagnostico', { required: true })} />
                 </div>
-
-                <div style={{ marginTop: '10px', fontSize: '13px' }}>
-                  <label style={{ fontWeight: 'bold' }}>Evolución / Descripción:</label>
-                  <textarea {...register('descripcion', { required: true })} rows="3" style={{ width: '98%', padding: '6px', marginTop: '4px' }}></textarea>
+                
+                <div className="sst-form-group">
+                  <label>Evolución / Descripción:</label>
+                  <textarea {...register('descripcion', { required: true })} rows="3"></textarea>
                 </div>
-
-                <button type="submit" style={{ marginTop: '15px', backgroundColor: gestionEnEdicion ? '#f39c12' : '#2ecc71', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '5px', cursor: 'pointer', width: '100%', fontWeight: 'bold' }}>
+                
+                <button type="submit" className="sst-btn-submit">
                   {gestionEnEdicion ? "Actualizar Gestión" : "Guardar Gestión"}
                 </button>
               </form>
-            )}
-
-          </div>
+            </div>
+          )}
         </div>
-      )}
+
+      </div>
+
+    </div>
+  </div>
+)}
     </div>
   );
 }

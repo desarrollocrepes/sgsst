@@ -1,0 +1,257 @@
+/* VistaLider.css */
+
+:root {
+  --primary-color: #2c3e50;
+  --secondary-color: #3498db;
+  --danger-color: #e74c3c;
+  --success-color: #2ecc71;
+  --warning-color: #f39c12;
+  --bg-color: #f8f9fa;
+  --text-dark: #343a40;
+  --text-muted: #6c757d;
+  --border-color: #dee2e6;
+}
+
+.vista-lider-container {
+  margin: 0 auto;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--text-dark);
+}
+
+/* Navbar */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--primary-color);
+  color: white;
+  padding: 15px 25px;
+  border-radius: 8px;
+}
+
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid white;
+}
+
+.nav-user-info h4 {
+  margin: 0 0 4px 0;
+  font-size: 1.1rem;
+}
+
+.nav-user-info small {
+  color: #bdc3c7;
+}
+
+/* Banner */
+.banner {
+  background-color: var(--bg-color);
+  padding: 30px 20px;
+  border-radius: 8px;
+  margin-top: 20px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+}
+
+.banner h3 {
+  margin-top: 0;
+  color: var(--primary-color);
+}
+
+.banner p {
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+/* Botones Generales */
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+  filter: brightness(0.9);
+}
+
+.btn-primary { background-color: var(--secondary-color); color: white; }
+.btn-danger { background-color: var(--danger-color); color: white; }
+.btn-success { background-color: var(--success-color); color: white; width: 100%; margin-top: 20px;}
+.btn-warning { background-color: var(--warning-color); color: white; width: 100%; margin-top: 20px;}
+
+/* Botones pequeños para la tabla */
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  border-radius: 4px;
+}
+.btn-edit { background-color: var(--warning-color); color: white; border: none; cursor: pointer; margin-right: 8px; }
+.btn-delete { background-color: var(--danger-color); color: white; border: none; cursor: pointer; }
+
+/* Formulario */
+.form-container {
+  background-color: white;
+  border: 1px solid var(--border-color);
+  padding: 30px;
+  border-radius: 8px;
+  margin-top: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.form-title {
+  margin-top: 0;
+  color: var(--primary-color);
+  border-bottom: 2px solid var(--bg-color);
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.form-control {
+  padding: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--secondary-color);
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.25);
+}
+
+.error-text {
+  color: var(--danger-color);
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.colaborador-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 15px;
+  padding: 15px;
+  background-color: var(--bg-color);
+  border-radius: 6px;
+  border: 1px dashed #adb5bd;
+}
+
+/* Tabla de Historial */
+.historial-section {
+  margin-top: 40px;
+}
+
+.historial-title {
+  color: var(--primary-color);
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.report-table th {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 15px;
+  text-align: left;
+  font-weight: 500;
+}
+
+.report-table td {
+  padding: 15px;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.report-table tr:last-child td {
+  border-bottom: none;
+}
+
+.report-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.table-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.table-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.badge {
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-open {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.badge-closed {
+  background-color: #d1ecf1;
+  color: #0c5460;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-muted);
+  font-style: italic;
+}
