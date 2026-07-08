@@ -352,47 +352,81 @@ export default function VistaSST() {
             {/* KPIs */}
             <div className="sst-kpis">
               <div className="sst-kpi-card">
-                <h2>{metricas.total}</h2><small>Casos (Filtrados)</small>
-              </div>
-              <div className="sst-kpi-card" style={{borderBottomColor: 'var(--danger)'}}>
-                <h2>{metricas.abiertos}</h2><small>Abiertos</small>
-              </div>
-              <div className="sst-kpi-card" style={{borderBottomColor: 'var(--warning)'}}>
-                <h2>{metricas.seguimiento}</h2><small>En Seguimiento</small>
-              </div>
-              <div className="sst-kpi-card" style={{borderBottomColor: 'var(--success)'}}>
-                <h2>{metricas.cerrados}</h2><small>Cerrados</small>
+                <div className="sst-kpi-item">
+                  <h2>{metricas.total}</h2>
+                  <small>Casos</small>
+                </div>
+
+                <div className="sst-kpi-item">
+                  <h2>{metricas.abiertos}</h2>
+                  <small>Abiertos</small>
+                </div>
+
+                <div className="sst-kpi-item">
+                  <h2>{metricas.seguimiento}</h2>
+                  <small>En Seguimiento</small>
+                </div>
+
+                <div className="sst-kpi-item">
+                  <h2>{metricas.cerrados}</h2>
+                  <small>Cerrados</small>
+                </div>
               </div>
             </div>
 
             {/* PANEL DE GRÁFICOS */}
             <div className="sst-charts-grid">
-              
-              {/* Gráfico de Estado (Circular) */}
-              <div className="sst-chart-card">
+
+              <div className="sst-chart-item">
                 <h4>Estado General</h4>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
-                    <Pie data={datosEstado} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70}>
-                      {datosEstado.map((entry, idx) => <Cell key={`cell-${idx}`} fill={entry.color} />)}
+                    <Pie
+                      data={datosEstado}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={75}
+                    >
+                      {datosEstado.map((entry, idx) => (
+                        <Cell key={idx} fill={entry.color} />
+                      ))}
                     </Pie>
                     <Tooltip />
-                    <Legend iconType="circle" wrapperStyle={{fontSize: '12px'}} />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: "12px" }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
 
-              <CustomBarChart data={datosIMC} title="Distribución por IMC" />
-              <CustomBarChart data={datosSistema} title="Sistemas Afectados" />
-              <CustomBarChart data={datosAccion} title="Acciones Frecuentes" />
-              <CustomBarChart data={datosEntidad} title="Entidades" />
-              <CustomBarChart data={datosGenero} title="Distribución de Género" />
-              <CustomBarChart data={datosDiagnostico} title="Top 5 Diagnósticos" />
+              <div className="sst-chart-item">
+                <CustomBarChart data={datosIMC} title="Distribución por IMC" />
+              </div>
+
+              <div className="sst-chart-item">
+                <CustomBarChart data={datosSistema} title="Sistemas Afectados" />
+              </div>
+
+              <div className="sst-chart-item">
+                <CustomBarChart data={datosAccion} title="Acciones Frecuentes" />
+              </div>
+
+              <div className="sst-chart-item">
+                <CustomBarChart data={datosEntidad} title="Entidades" />
+              </div>
+
+              <div className="sst-chart-item">
+                <CustomBarChart data={datosGenero} title="Distribución de Género" />
+              </div>
+
+              <div className="sst-chart-item">
+                <CustomBarChart data={datosDiagnostico} title="Top 5 Diagnósticos" />
+              </div>
+
             </div>
 
             {/* TABLA PRINCIPAL */}
             <div className="sst-table-section">
-              <h3>Listado de Reportes</h3>
               <div className="sst-table-responsive">
                 <table className="sst-table">
                   <thead>
@@ -420,7 +454,7 @@ export default function VistaSST() {
                                 <img src={rep.attributes.colaborador_foto} alt="img" />
                                 <div>
                                   <span>{rep.attributes.colaborador_nombre}</span><br/>
-                                  <small>Doc: {rep.attributes.colaborador_documento}</small>
+                                  <small>{rep.attributes.colaborador_documento}</small>
                                 </div>
                               </div>
                             </td>
