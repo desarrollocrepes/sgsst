@@ -8,7 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer 
 } from 'recharts';
 import "./VistaSST.css";
-import { BookOpenTextIcon, CircleX } from 'lucide-react';
+import { ArrowDown, ArrowUp, CircleX } from 'lucide-react';
 
 // --- CONSTANTES ---
 const API_BASE = 'https://macfer.crepesywaffles.com/api';
@@ -521,7 +521,6 @@ export default function VistaSST() {
         )}
       </div>
 
-      {/* ================= COLUMNA DERECHA: CONTENIDO ================= */}
       <div className="sst-modal-main">
         
         {/* Cabecera del Reporte */}
@@ -537,10 +536,9 @@ export default function VistaSST() {
           </button>
         </div>
 
-        {/* Bloque central escroleable */}
+        {/* Historial de Seguimientos */}
         <div className="sst-main-scrollable">
-          
-          {/* Caja con la descripción original y autoría */}
+
           <div className="sst-box-descripcion">
             <p style={{ marginBottom: '1rem', color: '#64748b', fontSize: '0.85rem' }}>
               Creado por <strong>{casoSeleccionado.attributes.creador_reporte_nombre}</strong> el {casoSeleccionado.attributes.fecha_creacion_manual || new Date(casoSeleccionado.attributes.createdAt).toLocaleString()}
@@ -553,7 +551,6 @@ export default function VistaSST() {
             </p>
           </div>
 
-          {/* Historial de Seguimientos */}
           <h4 className="sst-section-title">Historial de Seguimientos</h4>
           
           {casoSeleccionado.attributes.sstgestions?.data?.length === 0 ? (
@@ -566,24 +563,57 @@ export default function VistaSST() {
 
                 return (
                   <li key={gestion.id} className="sst-history-item">
-                    <div>
-                      <strong>{dayjs(attrs.fecha_hora).format('DD/MM/YYYY')} - {attrs.creador}</strong><br />
-                      <span>Acción: {attrs.accion_realizada} | Estado: <strong>{attrs.estado_registrado || 'N/A'}</strong></span><br />
-                      <span>Métricas: {attrs.peso_kg} kg / {attrs.talla_m} m — <strong>IMC: {calcularIMC(attrs.peso_kg, attrs.talla_m)}</strong></span><br />
-                      <span><strong>Diagnóstico:</strong> {attrs.diagnostico} - {attrs.descripcion}</span>
+                    <div className="sst-history-main">
                       
+                      {/* Cabecera */}
+                      <div className="sst-history-header">
+                        <span>Creado por <strong>{attrs.creador}</strong> el {dayjs(attrs.fecha_hora).format('DD/MM/YYYY')}</span>
+                        <span className="sst-history-status">{attrs.estado_registrado || 'N/A'}</span>
+                      </div>
+
+                      {/* Acción */}
+                      <div className="sst-history-action">
+                        Acción: {attrs.accion_realizada}
+                      </div>
+
+                      {/* Métricas (Fondo gris claro) */}
+                      <div className="sst-history-metrics">
+                        <span><strong>Peso:</strong> {attrs.peso_kg} kg</span>
+                        <span><strong>Talla:</strong> {attrs.talla_m} m</span>
+                        <span><strong>IMC:</strong> {calcularIMC(attrs.peso_kg, attrs.talla_m)}</span>
+                      </div>
+
+                      {/* Diagnóstico */}
+                      <div className="sst-history-diagnosis">
+                        <strong>Diagnóstico:</strong> {attrs.diagnostico} - {attrs.descripcion}
+                      </div>
+                      
+                      {/* Temporalidad */}
                       {attrs.temporalidad && (
-                        <div style={{ marginTop: '0.5rem' }}>
-                          <strong>Vencimiento: </strong> 
-                          <span style={{ color: estaVencidoInd ? 'var(--danger)' : 'inherit' }}>
+                        <div className={`sst-history-temporalidad ${estaVencidoInd ? 'vencido' : ''}`}>
+                          <strong>Temporalidad: </strong> 
+                          <span>
                             {dayjs(attrs.temporalidad).format('DD/MM/YYYY')} {estaVencidoInd ? '(¡VENCIDO!)' : ''}
                           </span>
                         </div>
                       )}
+
                     </div>
+
+                    {/* Botones de acción */}
                     <div className="sst-history-actions">
-                      <button onClick={() => handleEditarGestion(gestion)}>✏️ Editar</button>
-                      <button onClick={() => handleEliminarGestion(gestion.id)} style={{ color: 'var(--danger)' }}>🗑️</button>
+                      <button 
+                        className="sst-btn-history" 
+                        onClick={() => handleEditarGestion(gestion)}
+                      >
+                        Editar
+                      </button>
+                      <button 
+                        className="sst-btn-history delete" 
+                        onClick={() => handleEliminarGestion(gestion.id)}
+                      >
+                        Eliminar
+                      </button>
                     </div>
                   </li>
                 );
@@ -592,7 +622,7 @@ export default function VistaSST() {
           )}
         </div>
 
-        {/* Sección Acordeón Inferior: Agregar Seguimiento */}
+        {/* Agregar Seguimiento */}
         <div className="sst-footer-accordion">
           <div 
             className="sst-accordion-header" 
@@ -601,14 +631,14 @@ export default function VistaSST() {
               if (gestionEnEdicion) { setGestionEnEdicion(null); reset(); }
             }}
           >
-            <h4>{gestionEnEdicion ? "✏️ Editando Seguimiento" : "Agregar Nuevo Seguimiento"}</h4>
+            <h4>{gestionEnEdicion ? "Editar Seguimiento" : "Agregar Seguimiento"}</h4>
             <span className="sst-accordion-icon">
-              {mostrarFormSeguimiento ? '🔼' : '🔽'}
+              {mostrarFormSeguimiento ? <ArrowDown /> : <ArrowUp /> }
             </span>
           </div>
 
           {mostrarFormSeguimiento && (
-            <div className="sst-form-container" style={{ marginTop: '1rem' }}>
+            <div className="sst-form-container">
               <form onSubmit={handleSubmit(onSubmitGestionSST)}>
                 <div className="sst-form-grid">
                   <div className="sst-form-group">
