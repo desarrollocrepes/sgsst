@@ -26,7 +26,6 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   margin-bottom: 2rem;
 }
 
@@ -67,23 +66,19 @@
   color: white;
 }
 
-/* --- CONTENEDOR PRINCIPAL --- */
 .sst-container {
-  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 2rem;
+  padding: 0 0.5rem;
 }
 
-/* --- FILTROS --- */
 .sst-filters {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
   background: var(--card-bg);
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   align-items: center;
 }
 
@@ -93,7 +88,6 @@
   border: 1px solid var(--border-color);
   border-radius: 4px;
   flex: 1;
-  min-width: 200px;
 }
 
 .sst-filters label {
@@ -108,17 +102,15 @@
 .sst-kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .sst-kpi-card {
   background: var(--card-bg);
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
   text-align: center;
-  border-bottom: 4px solid var(--primary-color);
 }
 
 .sst-kpi-card h2 {
@@ -127,32 +119,23 @@
   color: var(--text-main);
 }
 
-.sst-kpi-card small {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
 /* --- GRÁFICOS --- */
 .sst-charts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .sst-chart-card {
   background: var(--card-bg);
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .sst-chart-card h4 {
   margin-top: 0;
   margin-bottom: 1rem;
-  color: var(--text-main);
   text-align: center;
 }
 

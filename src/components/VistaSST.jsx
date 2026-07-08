@@ -309,7 +309,7 @@ export default function VistaSST() {
           <img src={sst.foto} alt={sst.nombre} />
           <div>
             <h4>{sst.nombre}</h4>
-            <small>Analista SST - {sst.ciudad}</small>
+            <small>{sst.departamento}</small>
           </div>
         </div>
         <button className="sst-btn-logout" onClick={cerrarSesion}>Salir</button>
@@ -321,7 +321,7 @@ export default function VistaSST() {
             {/* BARRA DE FILTROS */}
             <div className="sst-filters">
               <input 
-                type="text" placeholder="🔍 Buscar ID, Nombre o Documento..." 
+                type="text" placeholder="Buscar ID, Nombre o Documento..." 
                 value={filtroBusqueda} onChange={e => setFiltroBusqueda(e.target.value)}
               />
               
@@ -345,7 +345,7 @@ export default function VistaSST() {
               </label>
 
               <label>
-                <input type="checkbox" checked={filtroVencidos} onChange={e => setFiltroVencidos(e.target.checked)} /> ⚠️ Solo Vencidos
+                <input type="checkbox" checked={filtroVencidos} onChange={e => setFiltroVencidos(e.target.checked)} /> Solo Vencidos
               </label>
             </div>
 
