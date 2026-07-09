@@ -101,47 +101,90 @@ export default function VistaLider() {
     }
   };
 
-  const onSubmitReporte = async (data) => {
-    try {
-      const payload = {
-        data: {
-          colaborador_documento: Number(colaboradorDetalle.document_number),
-          colaborador_nombre: colaboradorDetalle.nombre,
-          colaborador_foto: colaboradorDetalle.foto,
-          genero: data.genero,
-          categoria: data.categoria,
-          tipo_entidad: data.tipoEntidad,
-          nombre_entidad: data.nombreEntidad,
-          descripcion: data.descripcion,
-          creador_reporte_nombre: lider.nombre,
-          fecha_creacion_manual: data.fecha_creacion_manual || null,
-        }
-      };
+  const [archivo, setArchivo] = useState(null);
+const token = localStorage.getItem("token"); // o de donde obtengas el JWT
+console.log(token);
 
-      if (reporteEnEdicion) {
-        await axios.put(`${API_URL}/${reporteEnEdicion.id}`, payload);
-        alert("Reporte actualizado con éxito");
-      } else {
-        payload.data.estado = "abierto";
-        if (!payload.data.fecha_creacion_manual) {
-          payload.data.fecha_creacion_manual = new Date().toISOString();
-        }
-        await axios.post(API_URL, payload);
-        alert("Reporte guardado con éxito en el sistema");
-      }
-      
-      cancelarFormulario();
-      cargarHistorialDesdeStrapi(lider.nombre);
-    } catch (error) {
-      const errorDetalle = error.response?.data?.error;
-      if (errorDetalle && errorDetalle.details && errorDetalle.details.errors) {
-        const camposFallando = errorDetalle.details.errors.map(e => e.path.join('.')).join(', ');
-        alert(`Error de validación en los campos: ${camposFallando}. Revisa la consola.`);
-      } else {
-        alert(`Error 400: ${errorDetalle?.message || 'Revisa la consola para más detalles'}`);
-      }
+  const onSubmitReporte = async (data) => {
+  try {
+    let archivoId = null;
+
+    // Si el usuario seleccionó un archivo, lo sube primero
+    if (archivo) {
+      archivoId = await subirArchivo(archivo);
     }
-  };
+    // Si está editando y no seleccionó uno nuevo, conserva el existente
+    else if (
+      reporteEnEdicion?.attributes?.archivo?.data?.id
+    ) {
+      archivoId = reporteEnEdicion.attributes.archivo.data.id;
+    }
+
+    const payload = {
+      data: {
+        colaborador_documento: Number(colaboradorDetalle.document_number),
+        colaborador_nombre: colaboradorDetalle.nombre,
+        colaborador_foto: colaboradorDetalle.foto,
+        genero: data.genero,
+        categoria: data.categoria,
+        tipo_entidad: data.tipoEntidad,
+        nombre_entidad: data.nombreEntidad,
+        descripcion: data.descripcion,
+        creador_reporte_nombre: lider.nombre,
+        fecha_creacion_manual:
+          data.fecha_creacion_manual ||
+          new Date().toISOString().split("T")[0],
+        archivo: archivoId,
+      },
+    };
+
+    if (reporteEnEdicion) {
+      await axios.put(
+        `${API_URL}/${reporteEnEdicion.id}`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      alert("Reporte actualizado con éxito");
+    } else {
+      payload.data.estado = "abierto";
+
+      await axios.post(API_URL, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      alert("Reporte guardado con éxito");
+    }
+
+    setArchivo(null);
+    cancelarFormulario();
+    cargarHistorialDesdeStrapi(lider.nombre);
+
+  } catch (error) {
+    console.error(error);
+
+    const errorDetalle = error.response?.data?.error;
+
+    if (errorDetalle?.details?.errors) {
+      const campos = errorDetalle.details.errors
+        .map((e) => e.path.join("."))
+        .join(", ");
+
+      alert(`Error de validación en: ${campos}`);
+    } else {
+      alert(
+        errorDetalle?.message ||
+        "Ocurrió un error al guardar el reporte."
+      );
+    }
+  }
+};
 
   const cancelarFormulario = () => {
     setMostrarFormulario(false);
@@ -150,6 +193,27 @@ export default function VistaLider() {
   };
 
   if (!lider) return <p style={{ padding: "20px" }}>Cargando...</p>;
+
+  const subirArchivo = async (archivo) => {
+  const formData = new FormData();
+  formData.append("files", archivo);
+
+  const res = await fetch("https://macfer.crepesywaffles.com/api/upload", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    throw new Error("Error al subir el archivo");
+  }
+
+  const data = await res.json();
+
+  return data[0].id;
+  };
 
   return (
     <div className="vista-lider-container">
@@ -264,6 +328,12 @@ export default function VistaLider() {
             <label>Descripción de la Novedad:</label>
             <textarea className="form-control" {...register("descripcion", { required: "Describa la situación" })} rows="4" placeholder="Detalle las novedades o recomendaciones médicas observadas..."></textarea>
           </div>
+
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+            onChange={(e) => setArchivo(e.target.files[0] || null)}
+          />
 
           <button type="submit" className={`btn ${reporteEnEdicion ? 'btn-warning' : 'btn-success'}`}>
             {reporteEnEdicion ? "Actualizar Reporte" : "Enviar a Seguridad y Salud"}

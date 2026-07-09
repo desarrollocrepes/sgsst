@@ -8,7 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer 
 } from 'recharts';
 import "./VistaSST.css";
-import { ArrowDown, ArrowUp, CircleX } from 'lucide-react';
+import { ArrowDown, ArrowUp, CircleArrowDown, CircleArrowUp, CircleX } from 'lucide-react';
 
 // --- CONSTANTES ---
 const API_BASE = 'https://macfer.crepesywaffles.com/api';
@@ -460,13 +460,13 @@ export default function VistaSST() {
                             </td>
                             <td>
                               <span style={{ 
-                                padding: '4px 10px', borderRadius: '12px', fontSize: '11px', color: 'white', fontWeight: 'bold', textTransform: 'uppercase',
+                                padding: '4px 10px', borderRadius: '99px', fontSize: '11px', color: 'white', fontWeight: 'bold', textTransform: 'uppercase',
                                 backgroundColor: rep.attributes.estado === 'abierto' ? 'var(--danger)' : rep.attributes.estado === 'seguimiento' ? 'var(--warning)' : 'var(--success)'
                               }}>
                                 {rep.attributes.estado}
                               </span>
                               {estaVencido && (
-                                <span style={{display: 'block', fontSize: '11px', marginTop: '4px', color: 'var(--danger)'}}>⚠️ VENCIDO</span>
+                                <span style={{display: 'block', fontSize: '11px', marginTop: '4px', color: 'red'}}>VENCIDO</span>
                               )}
                             </td>
                             <td>
@@ -538,7 +538,7 @@ export default function VistaSST() {
 
               <div className="sst-sidebar-row">
                 <span className="sst-row-label">Ingreso</span>
-                <span className="sst-row-value">{datosBukColaborador.ingreso || 'N/A'}</span>
+                <span className="sst-row-value">{datosBukColaborador.ingreso} ({calcularAntiguedad(datosBukColaborador.ingreso)} años)</span>
               </div>
 
               <div className="sst-sidebar-row">
@@ -667,7 +667,7 @@ export default function VistaSST() {
           >
             <h4>{gestionEnEdicion ? "Editar Seguimiento" : "Agregar Seguimiento"}</h4>
             <span className="sst-accordion-icon">
-              {mostrarFormSeguimiento ? <ArrowDown /> : <ArrowUp /> }
+              {mostrarFormSeguimiento ? <CircleArrowDown /> : <CircleArrowUp /> }
             </span>
           </div>
 
