@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+cie.py
+cie10.csv
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

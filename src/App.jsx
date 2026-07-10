@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
 import VistaLider from './components/VistaLider';
 import VistaSST from './components/VistaSST';
-import "./App.css";
 
 function App() {
   return (
