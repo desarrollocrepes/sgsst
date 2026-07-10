@@ -1,7 +1,6 @@
-// src/components/Login.jsx
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios'; // Importamos axios
+import axios from 'axios';
 
 export default function Login() {
   const { register, handleSubmit, formState: { errors }, setError } = useForm();
@@ -9,66 +8,63 @@ export default function Login() {
 
   const onSubmit = async (data) => {
     try {
-      // Petición real a la API con el documento ingresado
       const url = `https://apialohav2.crepesywaffles.com/buk/empleados3?documento=${data.documento}`;
       const response = await axios.get(url);
 
-      // Validar si la API respondió correctamente y si el arreglo 'data' contiene elementos
       if (response.data.ok && response.data.data && response.data.data.length > 0) {
         const empleado = response.data.data[0];
 
-        // 1. Validar si el estado es activo
         if (empleado.status !== "activo") {
-          setError('documento', { type: 'manual', message: 'El colaborador no se encuentra activo.' });
+          setError('documento', { type: 'manual', message: 'Documento inactivo' });
           return;
         }
 
-        // Guardar la sesión en localStorage para usar el nombre/foto en el Navbar
         localStorage.setItem('usuarioLogueado', JSON.stringify(empleado));
 
-        // 2. Enrutamiento por Roles según las condiciones exactas
         if (empleado.departamento === "Seguridad y Salud en el Trabajo") {
           navigate('/sst');
         } else if (empleado.lider === 1) {
           navigate('/lider');
         } else {
-          setError('documento', { type: 'manual', message: 'El documento existe, pero no cuenta con rol de Líder ni SST.' });
+          setError('documento', { type: 'manual', message: 'Documento no cuenta pemisos' });
         }
-
       } else {
-        setError('documento', { type: 'manual', message: 'Documento de identidad no encontrado.' });
+        setError('documento', { type: 'manual', message: 'Documento no encontrado' });
       }
-
     } catch (error) {
-      console.error("Error al conectar con la API de empleados:", error);
-      setError('documento', { type: 'manual', message: 'Error de conexión con el servidor de empleados.' });
+      setError('documento', { type: 'manual', message: 'Error' });
     }
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '100px auto', fontFamily: 'Arial, sans-serif', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-      <h2 style={{ textAlign: 'center', color: '#2c3e50' }}>SG-SST</h2>
-      
-      <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        <div>
-          <label style={{ fontWeight: 'bold' }}>Documento de Identidad:</label>
-          <input 
-            type="text" 
-            {...register('documento', { required: 'El documento es requerido' })} 
-            placeholder="Ingrese su identificación"
-            style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box' }}
-          />
-          {errors.documento && (
-            <span style={{ color: '#e74c3c', fontSize: '14px', display: 'block', marginTop: '5px' }}>
-              {errors.documento.message}
-            </span>
-          )}
-        </div>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Arial, sans-serif' }}>
+      <div style={{ backgroundColor: '#ffffff', padding: '40px', borderRadius: '16px', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', width: '100%', maxWidth: '420px', textAlign: 'center' }}>
+        
+        <h2 style={{ color: '#4a2c2a', marginBottom: '10px', fontSize: '24px' }}>SG-SST</h2>
+        <p style={{ color: '#7f8c8d', marginBottom: '10px', fontSize: '14px' }}>Ingrese su número de documento para acceder</p>
+        
+        <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' }}>
+          <div>
+            <input 
+              type="text" 
+              {...register('documento', { required: 'El documento es requerido' })} 
+              placeholder="Ej: 1234567890"
+              style={{ width: '100%', padding: '12px 15px', marginTop: '8px', borderRadius: '8px', border: '1px solid #e0e0e0', boxSizing: 'border-box', fontSize: '15px', outline: 'none' }}
+              onFocus={(e) => e.target.style.borderColor = '#4a2c2a'}
+              onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+            />
+            {errors.documento && (
+              <span style={{ color: '#e74c3c', fontSize: '13px', display: 'block', marginTop: '5px' }}>
+                {errors.documento.message}
+              </span>
+            )}
+          </div>
 
-        <button type="submit" style={{ padding: '10px', backgroundColor: '#2c3e50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}>
-          Ingresar al Sistema
-        </button>
-      </form>
+          <button type="submit" style={{ padding: '14px', backgroundColor: '#4a2c2a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', transition: 'background-color 0.2s' }}>
+            Ingresar
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

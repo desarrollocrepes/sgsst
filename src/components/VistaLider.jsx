@@ -10,7 +10,6 @@ export default function VistaLider() {
   const [historial, setHistorial] = useState([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(true);
 
-  // Nuevo estado para saber si estamos creando o editando
   const [reporteEnEdicion, setReporteEnEdicion] = useState(null);
 
   const { register, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm();
@@ -64,45 +63,13 @@ export default function VistaLider() {
     navigate('/login');
   };
 
-  // --- NUEVO: Función para preparar el formulario para EDICIÓN ---
-  const handleEditar = (reporte) => {
-    setReporteEnEdicion(reporte);
-    setMostrarFormulario(true);
-    const attrs = reporte.attributes;
-
-    // Rellenar el formulario con los datos existentes
-    setValue("colaboradorDoc", attrs.colaborador_documento);
-    setValue("categoria", attrs.categoria);
-    setValue("genero", attrs.genero);
-    setValue("tipoEntidad", attrs.tipo_entidad);
-    setValue("nombreEntidad", attrs.nombre_entidad);
-    setValue("descripcion", attrs.descripcion);
-  };
-
-  // --- NUEVO: Función para ELIMINAR un reporte ---
-  const handleEliminar = async (id) => {
-    const confirmar = window.confirm("¿Está seguro de que desea eliminar este reporte de forma permanente?");
-    if (confirmar) {
-      try {
-        await axios.delete(`https://macfer.crepesywaffles.com/api/sstreportes/${id}`);
-        alert("Reporte eliminado correctamente.");
-        cargarHistorialDesdeStrapi(lider.nombre);
-      } catch (error) {
-        console.error("Error al eliminar el reporte:", error);
-        alert("No se pudo eliminar el reporte. Verifique si tiene gestiones asociadas.");
-      }
-    }
-  };
-
   const onSubmitReporte = async (data) => {
-    // Validación de seguridad añadida
     if (!colaboradorDetalle) {
       alert("No se pudo obtener el detalle del colaborador. Seleccione un colaborador nuevamente.");
       return;
     }
 
     try {
-      // 1. Preparamos los datos en texto plano
       const payloadData = {
         colaborador_documento: Number(colaboradorDetalle.document_number),
         colaborador_nombre: colaboradorDetalle.nombre,
@@ -115,14 +82,11 @@ export default function VistaLider() {
         creador_reporte_nombre: lider.nombre,
       };
 
-      // 2. Usamos FormData para poder enviar archivos a Strapi
       const formData = new FormData();
 
       if (reporteEnEdicion) {
-        // ACTUALIZAR (PUT)
         formData.append('data', JSON.stringify(payloadData));
         
-        // Si el usuario subió un archivo nuevo al editar, lo adjuntamos
         if (data.archivo && data.archivo.length > 0) {
           formData.append('files.archivo', data.archivo[0]);
         }
@@ -132,15 +96,13 @@ export default function VistaLider() {
         });
         alert("Reporte actualizado con éxito.");
       } else {
-        // CREAR (POST)
-        payloadData.estado = "abierto"; // Solo lo forzamos a abierto al crear
+        payloadData.estado = "abierto";
         payloadData.fecha_creacion_manual = data.fechaCreacionManual 
           ? new Date(data.fechaCreacionManual).toISOString() 
           : new Date().toISOString();
         
         formData.append('data', JSON.stringify(payloadData));
         
-        // Si el usuario subió un archivo al crear, lo adjuntamos
         if (data.archivo && data.archivo.length > 0) {
           formData.append('files.archivo', data.archivo[0]);
         }
@@ -156,19 +118,7 @@ export default function VistaLider() {
       reset();
       cargarHistorialDesdeStrapi(lider.nombre);
     } catch (error) {
-      console.error("Status:", error.response?.status);
-
-      console.log("Objeto completo:");
-      console.dir(error.response?.data, { depth: null });
-
-      console.log("Error:");
-      console.log(error.response?.data?.error);
-
-      console.log("Mensaje:");
-      console.log(error.response?.data?.error?.message);
-
-      console.log("Detalles:");
-      console.log(error.response?.data?.error?.details);
+      console.error("Status:", error.response?.status); 
     }
   };
 
@@ -178,68 +128,57 @@ export default function VistaLider() {
     reset();
   };
 
-  if (!lider) return <p style={{ padding: '20px' }}>Cargando sesión del líder...</p>;
+  if (!lider) return <p style={{ padding: '20px' }}>Cargando...</p>;
 
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
-      {/* NAVBAR */}
-      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#2c3e50', color: 'white', padding: '10px 20px', borderRadius: '8px' }}>
+    <div style={{ fontFamily: 'Arial, sans-serif', padding: '20px', margin: '0 ', padding: "0" }}>
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#3c1f1c', color: 'white', padding: '10px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           <img src={lider.foto} alt={lider.nombre} style={{ width: '45px', height: '45px', borderRadius: '50%', objectFit: 'cover' }} />
           <div>
-            <h4 style={{ margin: 0 }}>{lider.nombre}</h4>
-            <small style={{ color: '#bdc3c7' }}>{lider.cargo} - {lider.departamento}</small>
+            <h4>{lider.nombre}</h4>
+            <h4>{lider.departamento}</h4>
           </div>
         </div>
-        <button onClick={cerrarSesion} style={{ backgroundColor: '#e74c3c', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-          Salir
-        </button>
+        <button onClick={cerrarSesion} style={{ backgroundColor: '#ffffff', color: '#3c1f1c', border: 'none', padding: '8px 15px', borderRadius: '99px', cursor: 'pointer' }}>Salir</button>
       </nav>
 
-      {/* BANNER */}
-      <div style={{ backgroundColor: '#ecf0f1', padding: '20px', borderRadius: '8px', marginTop: '20px', textAlign: 'center', border: '1px solid #bdc3c7' }}>
-        <h3>Gestión de Novedades de Seguridad y Salud</h3>
-        <p>Reporte reincorporaciones, recomendaciones o incapacidades recurrentes de su equipo de trabajo asignado.</p>
+      <div style={{ padding: '20px', borderRadius: '8px', margin: '1rem', textAlign: 'center', border: '1px solid #bdc3c7' }}>
+        <h3>Reporte de Novedades de SST</h3><br />
         <button 
           onClick={mostrarFormulario ? cancelarFormulario : () => setMostrarFormulario(true)} 
-          style={{ backgroundColor: '#3498db', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}
+          style={{ backgroundColor: '#3c1f1c', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '99px', cursor: 'pointer', fontWeight: 'bold' }}
         >
-          {mostrarFormulario ? "Cancelar / Cerrar Formulario" : "Crear Nuevo Reporte"}
+          {mostrarFormulario ? "Cancelar" : "Crear Nuevo Reporte"}
         </button>
       </div>
 
-      {/* FORMULARIO */}
       {mostrarFormulario && (
-        <form onSubmit={handleSubmit(onSubmitReporte)} style={{ backgroundColor: '#fff', border: '1px solid #dee2e6', padding: '25px', borderRadius: '8px', marginTop: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-          <h4 style={{ marginTop: 0, color: '#2c3e50' }}>
-            {reporteEnEdicion ? `Editando Reporte #${reporteEnEdicion.id}` : "Formulario de Reporte Obligatorio"}
-          </h4>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <form onSubmit={handleSubmit(onSubmitReporte)} style={{ border: '1px solid #dee2e6', padding: '25px', borderRadius: '8px', margin: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
             <div>
-              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Seleccionar Colaborador de su Equipo:</label>
-              <select {...register("colaboradorDoc", { required: "Debe seleccionar un colaborador" })} style={{ width: '100%', padding: '8px', borderRadius: '4px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Seleccionar colaborador</label>
+              <select {...register("colaboradorDoc", { required: "Debe seleccionar un colaborador" })} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}>
                 <option value="">-- Seleccione --</option>
                 {lider.equipo && lider.equipo.map(colab => (
-                  <option key={colab.document_number} value={colab.document_number}>{colab.nombre}</option>
+                  <option key={colab.document_number} value={colab.document_number}>{colab.document_number} {colab.nombre}</option>
                 ))}
               </select>
               {errors.colaboradorDoc && <span style={{ color: 'red', fontSize: '12px' }}>{errors.colaboradorDoc.message}</span>}
               
               {colaboradorDetalle && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '15px', padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '5px', border: '1px dashed #ccc' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '15px', padding: '10px', borderRadius: '5px', border: '1px dashed #ccc' }}>
                   <img src={colaboradorDetalle.foto} alt={colaboradorDetalle.nombre} style={{ width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover' }} />
                   <div>
-                    <strong style={{ display: 'block' }}>{colaboradorDetalle.nombre}</strong>
-                    <small>Documento: {colaboradorDetalle.document_number}</small>
+                    <h1 style={{ display: 'block' }}>{colaboradorDetalle.nombre}</h1>
+                    <h1 style={{ display: 'block' }}>{colaboradorDetalle.document_number}</h1>
                   </div>
                 </div>
               )}
 
-              {/* NUEVO CAMPO: Fecha de Creación Manual */}
-              <div style={{ marginTop: '15px' }}>
+              <div style={{ marginTop: '1rem' }}>
                 <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>
-                  Fecha de Creación (Opcional para casos antiguos):
+                  Fecha de creación (Casos antiguos)
                 </label>
                 <input 
                   type="date" 
@@ -247,13 +186,11 @@ export default function VistaLider() {
                   style={{ width: '96%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} 
                 />
               </div>
-
-              
             </div>
 
             <div>
               <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Categoría del Evento:</label>
-              <select {...register("categoria", { required: "Seleccione una categoría" })} style={{ width: '100%', padding: '8px', borderRadius: '4px' }}>
+              <select {...register("categoria", { required: "Seleccione una categoría" })} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}>
                 <option value="">-- Seleccione --</option>
                 <option value="reincorporacion">Reincorporación post incapacidad</option>
                 <option value="medicas">Recomendaciones médicas</option>
@@ -265,7 +202,7 @@ export default function VistaLider() {
 
             <div>
               <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Género del colaborador:</label>
-              <select {...register("genero", { required: "Seleccione género" })} style={{ width: '100%', padding: '8px', borderRadius: '4px' }}>
+              <select {...register("genero", { required: "Seleccione género" })} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}>
                 <option value="">-- Seleccione --</option>
                 <option value="hombre">Hombre</option>
                 <option value="mujer">Mujer</option>
@@ -274,7 +211,7 @@ export default function VistaLider() {
 
             <div>
               <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Tipo de Entidad:</label>
-              <select {...register("tipoEntidad", { required: "Seleccione tipo de entidad" })} style={{ width: '100%', padding: '8px', borderRadius: '4px' }}>
+              <select {...register("tipoEntidad", { required: "Seleccione tipo de entidad" })} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: "1px solid #ccc" }}>
                 <option value="">-- Seleccione --</option>
                 <option value="eps">EPS</option>
                 <option value="arl">ARL</option>
@@ -284,7 +221,7 @@ export default function VistaLider() {
 
             <div>
               <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Nombre de la Entidad:</label>
-              <input type="text" {...register("nombreEntidad", { required: "Ingrese nombre" })} placeholder="Ej: Sura, Nueva EPS" style={{ width: '96%', padding: '8px', borderRadius: '4px' }} />
+              <input type="text" {...register("nombreEntidad", { required: "Ingrese nombre" })} placeholder="Ej: Sura, Nueva EPS" style={{ width: '96%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
             </div>
 
             <div>
@@ -292,7 +229,7 @@ export default function VistaLider() {
               <input 
                 type="file" 
                 {...register("archivo")} 
-                style={{ width: '96%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', backgroundColor: '#f9f9f9' }} 
+                style={{ width: '96%', padding: '8px', borderRadius: '4px', border: '1px dashed #ccc' }} 
                 accept=".pdf,.jpg,.jpeg,.png"
               />
             </div>
@@ -300,28 +237,24 @@ export default function VistaLider() {
 
           <div style={{ marginTop: '15px' }}>
             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>Descripción de la Novedad:</label>
-            <textarea {...register("descripcion", { required: "Describa la situación" })} rows="4" style={{ width: '98%', padding: '8px', borderRadius: '4px' }} placeholder="Detalle las novedades o recomendaciones médicas observadas..."></textarea>
+            <textarea {...register("descripcion", { required: "Describa la situación" })} rows="4" style={{ width: '98%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} placeholder="Detalle las novedades o recomendaciones médicas observadas..."></textarea>
           </div>
 
-          <button type="submit" style={{ marginTop: '15px', backgroundColor: reporteEnEdicion ? '#f39c12' : '#2ecc71', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
-            {reporteEnEdicion ? "Actualizar Reporte" : "Enviar a Seguridad y Salud"}
+          <button type="submit" style={{ marginTop: '15px', backgroundColor: reporteEnEdicion ? '#3c1f1c' : '#3c1f1c', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '99px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
+            {reporteEnEdicion ? "Actualizar" : "Enviar"}
           </button>
         </form>
       )}
 
-      {/* HISTORIAL LOCAL */}
-      <div style={{ marginTop: '30px' }}>
-        <h3 style={{ color: '#2c3e50', borderBottom: '2px solid #ecf0f1', paddingBottom: '10px' }}>Mis Reportes Radicados</h3>
-        
-        {cargandoHistorial ? <p>Consultando base de datos de Strapi...</p> : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '15px', textAlign: 'left' }}>
+      <div style={{ margin: '1rem', border: "1px solid #ddd", borderRadius: "8px", }}>
+        {cargandoHistorial ? <p>Cargando...</p> : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
             <thead>
-              <tr style={{ backgroundColor: '#f2f2f2' }}>
-                <th style={{ padding: '12px' }}>ID</th>
-                <th style={{ padding: '12px' }}>Colaborador</th>
-                <th style={{ padding: '12px' }}>Estado</th>
-                <th style={{ padding: '12px' }}>Fecha Registro</th>
-                <th style={{ padding: '12px' }}>Acciones</th>
+              <tr style={{ backgroundColor: '#3c1f1c', color: "#ffffff" }}>
+                <th style={{ padding: '0.5rem' }}>ID reporte</th>
+                <th style={{ padding: '0.5rem' }}>Colaborador</th>
+                <th style={{ padding: '0.5rem' }}>Estado</th>
+                <th style={{ padding: '0.5rem' }}>Fecha y hora reporte</th>
               </tr>
             </thead>
             <tbody>
@@ -347,10 +280,6 @@ export default function VistaLider() {
                     </span>
                   </td>
                   <td style={{ padding: '12px' }}>{new Date(rep.attributes.createdAt).toLocaleString()}</td>
-                  <td style={{ padding: '12px' }}>
-                    <button onClick={() => handleEditar(rep)} style={{ marginRight: '5px', padding: '5px 10px', cursor: 'pointer', backgroundColor: '#f39c12', color: 'white', border: 'none', borderRadius: '3px' }}>Editar</button>
-                    <button onClick={() => handleEliminar(rep.id)} style={{ padding: '5px 10px', cursor: 'pointer', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '3px' }}>Eliminar</button>
-                  </td>
                 </tr>
               ))}
               {historial.length === 0 && (

@@ -409,8 +409,8 @@ export default function VistaSST() {
               <thead>
                 <tr style={{ backgroundColor: '#3c1f1c', color: "#ffffff" }}>
                   <th style={{ padding: '0.5rem' }}>ID</th>
-                  <th style={{ padding: '0.5rem' }}>Colaborador afectado</th>
-                  <th style={{ padding: '0.5rem' }}>Estado actual</th>
+                  <th style={{ padding: '0.5rem' }}>Colaborador</th>
+                  <th style={{ padding: '0.5rem' }}>Estado</th>
                   <th style={{ padding: '0.5rem' }}>Categoría</th>
                 </tr>
               </thead>
@@ -535,13 +535,12 @@ export default function VistaSST() {
                             <div>
                               <div style={{ marginTop: '20px', padding: '15px', borderRadius: '8px', border: '1px solid #ddd' }}>
                                 <span><strong>{attrs.creador}</strong> creó este seguimiento el <strong>{attrs.fecha_hora}</strong></span><br />
-                                <span>El mensaje registrado fue: <strong>{attrs.diagnostico}</strong></span><br />
-                                <span>Diagnóstico <strong>{attrs.descripcion}</strong></span><br />
+                                <span><strong>{attrs.descripcion}</strong></span><br />
                                 <span>Acción realizada <strong>{attrs.accion_realizada}</strong></span><br />
                                 <span>Sistema afectado <strong>{attrs.sistema_afectado}</strong></span><br />
                                 <span>Peso <strong>{attrs.peso_kg} kg</strong>{" "}Talla <strong>{attrs.talla_m} m</strong>{" "}IMC{" "}<strong>{attrs.peso_kg > 0 && attrs.talla_m > 0 ? (attrs.peso_kg / (attrs.talla_m * attrs.talla_m)).toFixed(2): "-"}</strong></span><br />
                                 <span>Estado <strong style={{textTransform: "capitalize"}}>{attrs.estado_registrado}</strong></span><br />
-                                <span>Código CIE-10 <strong>{attrs.categoria_cie}</strong></span><br />
+                                <span>Código CIE-10 <strong>{attrs.categoria_cie} {attrs.diagnostico}</strong></span><br />
                                 {attrs.temporalidad && (
                                   <div>
                                     <strong>Vencimiento </strong>
@@ -571,35 +570,34 @@ export default function VistaSST() {
                     setMostrarFormSeguimiento(!mostrarFormSeguimiento);
                     if (gestionEnEdicion) { setGestionEnEdicion(null); reset(); }
                   }} 
-                  style={{ marginTop: '15px', backgroundColor: '#3498db', color: 'white', padding: '8px 15px', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}
+                  style={{ marginTop: '15px', border: '1px solid #3c1f1c', color: '#3c1f1c', padding: '4px 8px', borderRadius: '99px', cursor: 'pointer', fontWeight: 'bold' }}
                 >
                   {mostrarFormSeguimiento ? "Ocultar Formulario" : "Registrar Seguimiento"}
                 </button>
 
                 {/* FORMULARIO DE SEGUIMIENTO */}
                 {mostrarFormSeguimiento && (
-                  <form onSubmit={handleSubmit(onSubmitGestionSST)} style={{ marginTop: '15px', padding: '15px', backgroundColor: gestionEnEdicion ? '#fff9e6' : '#fafbfc', border: '1px dashed #bdc3c7', borderRadius: '8px' }}>
-                    <h4 style={{ marginTop: 0, color: gestionEnEdicion ? '#d35400' : '#2c3e50' }}>
-                      {gestionEnEdicion ? "Editando Seguimiento" : "Nuevo Seguimiento"}
+                  <form onSubmit={handleSubmit(onSubmitGestionSST)} style={{ marginTop: '15px', padding: '15px', border: '1px dashed #bdc3c7', borderRadius: '8px' }}>
+                    <h4 style={{ marginTop: 0, color: gestionEnEdicion ? '#d35400' : '#000' }}>
                     </h4>
 
                     {/* INPUT OCULTO PARA EL CÓDIGO CIE */}
                     <input type="hidden" {...register('categoria_cie')} />
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', fontSize: '13px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', fontSize: '13px' }}>
                       <div>
-                        <label style={{ fontWeight: 'bold' }}>Fecha Evento:</label>
-                        <input type="datetime-local" {...register('fechaHistorial')} style={{ width: '100%', padding: '6px', marginTop: '4px' }} />
+                        <label style={{ fontWeight: 'bold' }}>Fecha de creación (Casos antiguos)</label>
+                        <input type="date" {...register('fechaHistorial')} style={{ width: '100%', padding: '6px', marginTop: '4px', border: "1px solid #ddd", borderRadius: "8px" }} />
                       </div>
 
                       <div>
                         <label style={{ fontWeight: 'bold' }}>Temporalidad (Vencimiento):</label>
-                        <input type="date" {...register('temporalidad')} style={{ width: '100%', padding: '6px', marginTop: '4px' }} />
+                        <input type="date" {...register('temporalidad')} style={{ width: '100%', padding: '6px', marginTop: '4px', border: "1px solid #ddd", borderRadius: "8px" }} />
                       </div>
 
                       <div>
-                        <label style={{ fontWeight: 'bold' }}>Acción Realizada:</label>
-                        <select {...register('accion', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px' }}>
+                        <label style={{ fontWeight: 'bold' }}>Acción realizada:</label>
+                        <select {...register('accion', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px', border: "1px solid #ddd", borderRadius: "8px" }}>
                           <option value="compromiso">Compromiso de autocuidado</option>
                           <option value="acta">Acta de seguimiento</option>
                           <option value="lonchera">Autorización de Lonchera</option>
@@ -611,8 +609,8 @@ export default function VistaSST() {
                       </div>
 
                       <div>
-                        <label style={{ fontWeight: 'bold' }}>Sistema Afectado:</label>
-                        <select {...register('sistema', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px' }}>
+                        <label style={{ fontWeight: 'bold' }}>Sistema afectado:</label>
+                        <select {...register('sistema', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px', border: "1px solid #ddd", borderRadius: "8px" }}>
                           <option value="cardiovascular">Cardiovascular</option>
                           <option value="dermatologica">Dermatológica</option>
                           <option value="gastrointestinal">Gastrointestinal</option>
@@ -626,8 +624,8 @@ export default function VistaSST() {
                       </div>
 
                       <div>
-                        <label style={{ fontWeight: 'bold' }}>Actualizar Estado General:</label>
-                        <select {...register('nuevoEstado', { required: true })} defaultValue={casoSeleccionado.attributes.estado} style={{ width: '100%', padding: '6px', marginTop: '4px' }}>
+                        <label style={{ fontWeight: 'bold' }}>Actualizar estado</label>
+                        <select {...register('nuevoEstado', { required: true })} defaultValue={casoSeleccionado.attributes.estado} style={{ width: '100%', padding: '6px', marginTop: '4px', border: "1px solid #ddd", borderRadius: "8px" }}>
                           <option value="seguimiento">En Seguimiento</option>
                           <option value="cerrado">Cerrado</option>
                         </select>
@@ -636,16 +634,15 @@ export default function VistaSST() {
                       <div style={{ display: 'flex', gap: '10px' }}>
                         <div style={{ flex: 1 }}>
                           <label style={{ fontWeight: 'bold' }}>Peso (Kg):</label>
-                          <input type="number" step="0.1" {...register('pesoKg', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px' }} />
+                          <input type="number" step="0.1" {...register('pesoKg', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px', border: "1px solid #ddd", borderRadius: "8px" }} />
                         </div>
                         <div style={{ flex: 1 }}>
                           <label style={{ fontWeight: 'bold' }}>Talla (M):</label>
-                          <input type="number" step="0.01" {...register('tallaM', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px' }} />
+                          <input type="number" step="0.01" {...register('tallaM', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px', border: "1px solid #ddd", borderRadius: "8px" }} />
                         </div>
                       </div>
                     </div>
 
-                    {/* BÚSQUEDA CIE-10 */}
                     <div style={{ marginTop: '10px' }}>
                       <label style={{ fontWeight: 'bold', fontSize: '13px' }}>Código CIE-10</label>
                       <input
@@ -654,7 +651,7 @@ export default function VistaSST() {
                               setBusqueda(e.target.value);
                               buscarCie(e.target.value);
                           }}
-                          style={{ width: '100%', padding: '6px', marginTop: '4px', boxSizing: 'border-box' }}
+                          style={{ width: '100%', padding: '6px', marginTop: '4px', boxSizing: 'border-box', border: "1px solid #ddd", borderRadius: "8px" }}
                       />
                       
                       {resultados.length > 0 && (
@@ -681,19 +678,17 @@ export default function VistaSST() {
                       )}
                     </div>
 
-                    {/* CAMPO DIAGNÓSTICO */}
                     <div style={{ marginTop: '10px', fontSize: '13px' }}>
-                      <label style={{ fontWeight: 'bold' }}>Diagnóstico / Evolución:</label>
-                      <input type="text" {...register('diagnostico', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px', boxSizing: 'border-box' }} />
+                      <label style={{ fontWeight: 'bold' }}>Diagnóstico</label>
+                      <input type="text" disabled {...register('diagnostico', { required: true })} style={{ width: '100%', padding: '6px', marginTop: '4px', boxSizing: 'border-box', border: "1px solid #ddd", borderRadius: "8px" }} />
                     </div>
                     
-                    {/* CAMPO DESCRIPCIÓN */}
                     <div style={{ marginTop: '10px', fontSize: '13px' }}>
-                      <label style={{ fontWeight: 'bold' }}>Descripción Detallada (Comentarios):</label>
-                      <textarea {...register('descripcion', { required: true })} rows="3" style={{ width: '100%', padding: '6px', marginTop: '4px', boxSizing: 'border-box' }}></textarea>
+                      <label style={{ fontWeight: 'bold' }}>Descripción</label>
+                      <textarea {...register('descripcion', { required: true })} rows="3" style={{ width: '100%', padding: '6px', marginTop: '4px', boxSizing: 'border-box', border: "1px solid #ddd", borderRadius: "8px" }}></textarea>
                     </div>
 
-                    <button type="submit" style={{ marginTop: '15px', backgroundColor: gestionEnEdicion ? '#f39c12' : '#2ecc71', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '5px', cursor: 'pointer', width: '100%', fontWeight: 'bold' }}>
+                    <button type="submit" style={{ marginTop: '15px', border: '1px solid #3c1f1c', color: '#3c1f1c', padding: '4px 8px', borderRadius: '99px', cursor: 'pointer' }}>
                       {gestionEnEdicion ? "Actualizar Gestión" : "Guardar Gestión"}
                     </button>
                   </form>
