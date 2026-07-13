@@ -1,22 +1,63 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './components/Login';
-import VistaLider from './components/VistaLider';
-import VistaSST from './components/VistaSST';
+import { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Navbar from "./components/Navbar"; // Asegúrate de extraer este componente
+import Login from "./views/Login";
+import Lider from "./views/Lider";
+import SST from "./views/STT";
 import "./App.css";
 
-function App() {
+export default function App() {
+  const [user, setUser] = useState(null);
+
+  // Lógica de roles
+  const isSST = user?.departamento === "Seguridad y Salud en el Trabajo";
+  const isLider = user?.lider === 1;
+
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/lider" element={<VistaLider />} />
-        <Route path="/sst" element={<VistaSST />} />
+      {/* Si hay usuario, mostramos el Navbar en todas las rutas privadas */}
+      {user && <Navbar user={user} onLogout={() => setUser(null)} />}
 
-        <Route path="*" element={<h2>404 - Página no encontrada</h2>} />
+      <Routes>
+        {/* Ruta Raíz: Redirige según el rol del usuario */}
+        <Route 
+          path="/" 
+          element={
+            !user ? <Navigate to="/login" replace /> :
+            isSST ? <Navigate to="/sst" replace /> :
+            isLider ? <Navigate to="/lider" replace /> :
+            <div className="page"><div className="empty-state">Sin acceso.</div></div>
+          } 
+        />
+
+        {/* Ruta Login */}
+        <Route 
+          path="/login" 
+          element={
+            user ? <Navigate to="/" replace /> : <Login onLogin={setUser} />
+          } 
+        />
+
+        {/* Ruta Líder (Protegida) */}
+        <Route 
+          path="/lider" 
+          element={
+            !user ? <Navigate to="/login" replace /> :
+            !isLider ? <Navigate to="/" replace /> :
+            <Lider user={user} />
+          } 
+        />
+
+        {/* Ruta SST (Protegida) */}
+        <Route 
+          path="/sst" 
+          element={
+            !user ? <Navigate to="/login" replace /> :
+            !isSST ? <Navigate to="/" replace /> :
+            <SST user={user} />
+          } 
+        />
       </Routes>
     </BrowserRouter>
   );
 }
- 
-export default App;
