@@ -47,9 +47,40 @@ function CieSearch({ value, onSelect }) {
   );
 }
 
-export default function GestionForm({ user, reporteId, onClose, onSaved }) {
-  const [form, setForm] = useState({ fecha_hora: new Date().toISOString().split("T")[0], temporalidad: "", accion_realizada: "", sistema_afectado: "", estado_registrado: "", peso_kg: "", talla_m: "", diagnostico: "", descripcion: "" });
-  const [cie, setCie] = useState(null);
+// En tu archivo GestionForm.jsx (donde está el formulario de seguimientos)
+export default function GestionForm({ user, reporteId, gestionToEdit, onClose, onSaved }) {
+  // 1. Prellenar el estado si estamos editando, si no, valores por defecto
+  const [form, setForm] = useState(
+    gestionToEdit ? {
+      fecha_hora: gestionToEdit.attributes.fecha_hora,
+      temporalidad: gestionToEdit.attributes.temporalidad || "",
+      accion_realizada: gestionToEdit.attributes.accion_realizada || "",
+      sistema_afectado: gestionToEdit.attributes.sistema_afectado || "",
+      estado_registrado: gestionToEdit.attributes.estado_registrado || "seguimiento",
+      peso_kg: gestionToEdit.attributes.peso_kg || "",
+      talla_m: gestionToEdit.attributes.talla_m || "",
+      diagnostico: gestionToEdit.attributes.diagnostico || "",
+      descripcion: gestionToEdit.attributes.descripcion || ""
+    } : { 
+      fecha_hora: new Date().toISOString().split("T")[0], 
+      temporalidad: "", 
+      accion_realizada: "", 
+      sistema_afectado: "", 
+      estado_registrado: "seguimiento", // Por defecto
+      peso_kg: "", 
+      talla_m: "", 
+      diagnostico: "", 
+      descripcion: "" 
+    }
+  );
+  
+  // Si editamos, inicializamos el CIE
+  const [cie, setCie] = useState(
+    gestionToEdit?.attributes.categoria_cie 
+      ? { codigo: gestionToEdit.attributes.categoria_cie, descripcion: gestionToEdit.attributes.diagnostico } 
+      : null
+  );
+  
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -59,12 +90,41 @@ export default function GestionForm({ user, reporteId, onClose, onSaved }) {
     if (!form.accion_realizada) { setError("Selecciona una acción realizada."); return; }
     setSaving(true); setError("");
     try {
-      const res = await fetch(API_GESTIONES, {
-        method: "POST",
+      // 2. Determinar si creamos (POST) o actualizamos (PUT)
+      const isEditing = !!gestionToEdit;
+      const method = isEditing ? "PUT" : "POST";
+      const endpoint = isEditing ? `${API_GESTIONES}/${gestionToEdit.id}` : API_GESTIONES;
+
+      const resGestion = await fetch(endpoint, {
+        method: method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: { creador: user.nombre, fecha_hora: form.fecha_hora, temporalidad: form.temporalidad || null, accion_realizada: form.accion_realizada, sistema_afectado: form.sistema_afectado, estado_registrado: form.estado_registrado || "seguimiento", peso_kg: form.peso_kg ? parseFloat(form.peso_kg) : null, talla_m: form.talla_m ? parseFloat(form.talla_m) : null, categoria_cie: cie?.codigo || null, diagnostico: cie?.descripcion || form.diagnostico, descripcion: form.descripcion, sstreporte: reporteId } }),
+        body: JSON.stringify({ 
+          data: { 
+            creador: user.nombre, 
+            fecha_hora: form.fecha_hora, 
+            temporalidad: form.temporalidad || null, 
+            accion_realizada: form.accion_realizada, 
+            sistema_afectado: form.sistema_afectado, 
+            estado_registrado: form.estado_registrado, 
+            peso_kg: form.peso_kg ? parseFloat(form.peso_kg) : null, 
+            talla_m: form.talla_m ? parseFloat(form.talla_m) : null, 
+            categoria_cie: cie?.codigo || null, 
+            diagnostico: cie?.descripcion || form.diagnostico, 
+            descripcion: form.descripcion, 
+            sstreporte: reporteId 
+          } 
+        }),
       });
-      if (!res.ok) throw new Error("Error guardando gestión.");
+
+      if (!resGestion.ok) throw new Error("Error guardando gestión.");
+
+      // 3. SINCRONIZAR ESTADO DEL REPORTE GLOBAL
+      await fetch(`${API_REPORTES}/${reporteId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: { estado: form.estado_registrado } })
+      });
+
       onSaved();
     } catch (e) { setError(e.message); }
     setSaving(false);
@@ -73,7 +133,7 @@ export default function GestionForm({ user, reporteId, onClose, onSaved }) {
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
-        <div className="modal-title">Seguimiento</div>
+        <div className="modal-title">{gestionToEdit ? "Editar Seguimiento" : "Nuevo Seguimiento"}</div>
         <div className="form-grid">
           <div className="form-group"><label className="form-label">Fecha</label><input type="date" className="form-control" value={form.fecha_hora} onChange={e => set("fecha_hora", e.target.value)} /></div>
           <div className="form-group"><label className="form-label">Temporalidad (Vence)</label><input type="date" className="form-control" value={form.temporalidad} onChange={e => set("temporalidad", e.target.value)} /></div>

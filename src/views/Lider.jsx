@@ -28,6 +28,9 @@ export default function Lider({ user }) {
           <div className="section-title">Mis Reportes</div>
           <div style={{ fontSize: 13, color: "var(--gray-500)" }}>Historial de reportes creados por ti</div>
         </div>
+        <button className="btn btn-secondary" onClick={loadReportes} disabled={loading}>
+          Recargar
+        </button>
         <button className="btn btn-primary" onClick={() => setShowForm(true)}>Nuevo Reporte</button>
       </div>
       

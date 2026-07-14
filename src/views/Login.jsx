@@ -30,7 +30,10 @@ export default function Login({ onLogin }) {
         setError("No tienes permiso para acceder"); setLoading(false); return; 
       }
       
+      // GUARDAR SESIÓN AQUÍ (dentro del try, cuando ya validamos todo)
+      localStorage.setItem("userSession", JSON.stringify(emp));
       onLogin(emp);
+      
     } catch {
       setError("Error de conexión. Intenta de nuevo.");
     }

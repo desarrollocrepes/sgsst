@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar"; // Asegúrate de extraer este componente
 import Login from "./views/Login";
@@ -8,6 +8,19 @@ import "./App.css";
 
 export default function App() {
   const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // Al cargar la app, busca si ya hay un usuario guardado
+    const savedUser = localStorage.getItem("userSession");
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("userSession");
+    setUser(null);
+  };
 
   // Lógica de roles
   const isSST = user?.departamento === "Seguridad y Salud en el Trabajo";

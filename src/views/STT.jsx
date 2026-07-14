@@ -25,6 +25,18 @@ export default function SST({ user }) {
     setLoading(false);
   }, []);
 
+  const deleteReporte = async (id, e) => {
+    e.stopPropagation(); // Evita que se abra el panel lateral
+    if (!window.confirm("¿Estás seguro de que deseas eliminar este reporte?")) return;
+    
+    try {
+      await fetch(`${API_REPORTES}/${id}`, { method: "DELETE" });
+      loadReportes(); // Recarga la tabla
+    } catch (error) {
+      alert("Error al eliminar el reporte.");
+    }
+  };
+
   useEffect(() => { loadReportes(); }, [loadReportes]);
 
   const today = new Date();
@@ -111,6 +123,9 @@ export default function SST({ user }) {
       <div className="section-header">
         <div className="section-title">Historial de Casos</div>
       </div>
+      <button className="btn btn-secondary" onClick={loadReportes} disabled={loading}>
+        Recargar
+      </button>
       <div className="search-row">
         <input className="search-input" placeholder="Buscar por nombre, CC o ID..." value={search} onChange={e => setSearch(e.target.value)} />
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
@@ -134,6 +149,7 @@ export default function SST({ user }) {
                     <th>Estado</th>
                     <th>Fecha Reporte</th>
                     <th>Seguimientos</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -156,8 +172,18 @@ export default function SST({ user }) {
                         <td style={{ color: "var(--gray-600)" }}>{fmtDate(a.fecha_creacion_manual)}</td>
                         <td>
                           {nSeg > 0
-                            ? <span className="seguimiento-counter">💬 {nSeg}</span>
+                            ? <span className="seguimiento-counter">{nSeg}</span>
                             : <span style={{ color: "var(--gray-400)", fontSize: 12 }}>—</span>}
+                        </td>
+                        <td>
+                          <button 
+                            className="btn btn-danger btn-sm" 
+                            style={{ background: "#fee2e2", color: "#dc2626", border: "none" }}
+                            onClick={(e) => deleteReporte(r.id, e)}
+                            title="Eliminar"
+                          >
+                            Eliminar
+                          </button>
                         </td>
                       </tr>
                     );
