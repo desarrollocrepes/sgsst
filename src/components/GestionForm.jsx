@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { API_CIE, API_GESTIONES, API_REPORTES } from "../config/api";
+import { API_CIE, API_GESTIONES,  } from "../config/api";
 
 function CieSearch({ value, onSelect }) {
   const [query, setQuery] = useState(value?.codigo || "");
