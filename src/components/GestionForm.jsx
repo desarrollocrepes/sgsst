@@ -165,6 +165,7 @@ export default function GestionForm({ user, reporteId, gestionToEdit, onClose, o
               <option value="Respiratorio">Respiratorio</option>
               <option value="Alimenticio">Alimenticio</option>
               <option value="Neoplasias">Neoplasias</option>
+              <option value="Auditivo">Auditivo</option>
               <option value="Otro">Otro</option>
             </select>
           </div>
