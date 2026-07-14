@@ -60,7 +60,8 @@ export default function GestionForm({ user, reporteId, gestionToEdit, onClose, o
       peso_kg: gestionToEdit.attributes.peso_kg || "",
       talla_m: gestionToEdit.attributes.talla_m || "",
       diagnostico: gestionToEdit.attributes.diagnostico || "",
-      descripcion: gestionToEdit.attributes.descripcion || ""
+      descripcion: gestionToEdit.attributes.descripcion || "",
+      diagnostico_sst: gestionToEdit.attributes.diagnostico_sst || "",
     } : { 
       fecha_hora: new Date().toISOString().split("T")[0], 
       temporalidad: "", 
@@ -70,7 +71,8 @@ export default function GestionForm({ user, reporteId, gestionToEdit, onClose, o
       peso_kg: "", 
       talla_m: "", 
       diagnostico: "", 
-      descripcion: "" 
+      descripcion: "" ,
+      diagnostico_sst: "",
     }
   );
   
@@ -111,6 +113,7 @@ export default function GestionForm({ user, reporteId, gestionToEdit, onClose, o
             categoria_cie: cie?.codigo || null, 
             diagnostico: cie?.descripcion || form.diagnostico, 
             descripcion: form.descripcion, 
+            diagnostico_sst: form.diagnostico_sst || null,
             sstreporte: reporteId 
           } 
         }),
@@ -176,8 +179,10 @@ export default function GestionForm({ user, reporteId, gestionToEdit, onClose, o
           <div className="form-group"><label className="form-label">Talla (M)</label><input type="number" className="form-control" placeholder="1.70" step="0.01" value={form.talla_m} onChange={e => set("talla_m", e.target.value)} /></div>
           <div className="form-group"><label className="form-label">Código CIE-10</label><CieSearch value={cie} onSelect={c => { setCie(c); set("diagnostico", c.descripcion); }} /></div>
           <div className="form-group full"><label className="form-label">Diagnóstico</label><input className="form-control" disabled value={form.diagnostico} onChange={e => set("diagnostico", e.target.value)} placeholder="Auto desde CIE-10..." /></div>
+          <div className="form-group full"><label className="form-label">Diagnóstico SST</label><textarea className="form-control" rows={3} placeholder="Descripción del diagnóstico..." value={form.diagnostico_sst} onChange={e => set("diagnostico_sst", e.target.value)} /></div>
           <div className="form-group full"><label className="form-label">Observaciones</label><textarea className="form-control" rows={3} placeholder="Notas adicionales..." value={form.descripcion} onChange={e => set("descripcion", e.target.value)} /></div>
         </div>
+
         {error && <div className="login-error" style={{ marginTop: 12 }}>{error}</div>}
         <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "flex-end" }}>
           <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>

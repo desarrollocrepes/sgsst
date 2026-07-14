@@ -172,6 +172,7 @@ export default function CasePanel({ reporte, open, onClose, user, onGestionAdded
                     <div style={{ fontWeight: 600, marginBottom: 4 }}>{ga.accion_realizada?.replace(/_/g, " ")}</div>
                     {ga.sistema_afectado && <div style={{ fontSize: 12, color: "var(--gray-600)" }}>Sistema: {ga.sistema_afectado}</div>}
                     {ga.categoria_cie && <div style={{ fontSize: 12, color: "var(--gray-600)" }}>CIE: {ga.categoria_cie} — {ga.diagnostico}</div>}
+                    {ga.diagnostico_sst && <div style={{ fontSize: 12, color: "var(--gray-600)" }}>Diagnóstico SST: {ga.diagnostico_sst}</div>}
                     {imc && <div style={{ fontSize: 12, color: "var(--gray-600)" }}>IMC: {imc} (P:{ga.peso_kg}kg T:{ga.talla_m}m)</div>}
                     {ga.estado_registrado && <div style={{ marginTop: 4 }}><span className={`badge ${getBadge(ga.estado_registrado)}`}>{badgeLabel(ga.estado_registrado)}</span></div>}
                     {ga.descripcion && <div style={{ marginTop: 6, fontSize: 12, color: "var(--gray-600)" }}>{ga.descripcion}</div>}
