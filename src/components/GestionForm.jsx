@@ -160,6 +160,7 @@ export default function GestionForm({ user, reporteId, gestionToEdit, onClose, o
               <option value="Cardiovascular">Cardiovascular</option>
               <option value="Dermatologico">Dermatologico</option>
               <option value="Gastrointestinal">Gastrointestinal</option>
+              <option value="Genitourinario">Genitourinario</option>
               <option value="Inmunologico">Inmunologico</option>
               <option value="Neurologico">Neurologico</option>
               <option value="Respiratorio">Respiratorio</option>
