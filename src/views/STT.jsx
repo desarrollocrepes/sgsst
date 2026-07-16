@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { API_REPORTES } from "../config/api";
+import { API_EMPLEADOS, API_REPORTES } from "../config/api";
 import { fmtDate, getBadge, badgeLabel } from "../utils/helpers";
 import { computeStats } from "../utils/stats"; // Mueve la función computeStats aquí
 import Avatar from "../components/Avatar";
@@ -14,14 +14,42 @@ export default function SST({ user }) {
   const [soloMios, setSoloMios] = useState(false);
   const [selectedReporte, setSelectedReporte] = useState(null);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [empleadosByDoc, setEmpleadosByDoc] = useState({});
 
   const loadReportes = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`${API_REPORTES}?populate=*&pagination[pageSize]=40000`);
       const json = await res.json();
-      setReportes(json.data || []);
-    } catch { setReportes([]); }
+      const data = json.data || [];
+      setReportes(data);
+
+      const docs = [...new Set(data.map(r => r.attributes?.colaborador_documento).filter(Boolean))];
+      if (docs.length) {
+        const results = await Promise.all(
+          docs.map(async (doc) => {
+            try {
+              const empRes = await fetch(`${API_EMPLEADOS}?documento=${doc}`);
+              const empJson = await empRes.json();
+              return { doc, data: empJson.ok && empJson.data?.length ? empJson.data[0] : null };
+            } catch {
+              return { doc, data: null };
+            }
+          })
+        );
+
+        const map = {};
+        results.forEach(({ doc, data: emp }) => {
+          if (emp) map[doc] = emp;
+        });
+        setEmpleadosByDoc(map);
+      } else {
+        setEmpleadosByDoc({});
+      }
+    } catch {
+      setReportes([]);
+      setEmpleadosByDoc({});
+    }
     setLoading(false);
   }, []);
 
@@ -79,7 +107,7 @@ export default function SST({ user }) {
     return true;
   });
 
-  const stats = computeStats(reportes);
+  const stats = computeStats(reportes, empleadosByDoc);
 
   function openCase(r) {
     setSelectedReporte(r);
@@ -117,6 +145,10 @@ export default function SST({ user }) {
         <BarChart title="Género" data={stats.genero} color="var(--navy)" />
         <BarChart title="Categoría" data={stats.categoria} color="#805AD5" />
         <BarChart title="Diagnósticos CIE" data={stats.diagnostico} color="#D69E2E" />
+        <BarChart title="Por Cargo" data={stats.cargo} color="#3182CE" />
+        <BarChart title="Edad (rangos)" data={stats.edadRango} color="#805AD5" />
+        <BarChart title="Antigüedad (rangos)" data={stats.antiguedadRango} color="#F59E0B" />
+        <BarChart title="Área" data={stats.area} color="#0F766E" />
       </div>
 
       {/* Tabla */}
