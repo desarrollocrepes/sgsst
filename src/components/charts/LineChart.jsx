@@ -1,7 +1,8 @@
 import ReactECharts from "echarts-for-react";
 
-export default function BarChart({ title, data = [], color = "var(--teal)" }) {
+export default function LineChart({ title, data = [], color = "var(--teal)" }) {
   const safeData = Array.isArray(data) ? data : [];
+
   const chartData = safeData.map((d) => ({
     value: Number(d.count) || 0,
     name: d.label || "Sin etiqueta",
@@ -10,7 +11,7 @@ export default function BarChart({ title, data = [], color = "var(--teal)" }) {
   const option = {
     tooltip: {
       trigger: "axis",
-      axisPointer: { type: "shadow" },
+      axisPointer: { type: "cross" },
     },
     grid: { left: 8, right: 8, top: 8, bottom: 34, containLabel: true },
     xAxis: {
@@ -24,6 +25,7 @@ export default function BarChart({ title, data = [], color = "var(--teal)" }) {
       },
       axisLine: { show: false },
       axisTick: { show: false },
+      boundaryGap: false,
     },
     yAxis: {
       type: "value",
@@ -33,13 +35,25 @@ export default function BarChart({ title, data = [], color = "var(--teal)" }) {
     },
     series: [
       {
-        type: "bar",
-        data: chartData.map((d) => ({ value: d.value, name: d.name })),
-        itemStyle: {
-          color: color,
-          borderRadius: [6, 6, 0, 0],
+        type: "line",
+        data: chartData.map((d) => d.value),
+        smooth: true,
+        itemStyle: { color },
+        areaStyle: {
+          color: [
+            {
+              offset: 0,
+              color: `${color}33`,
+            },
+            {
+              offset: 1,
+              color: `${color}00`,
+            },
+          ],
         },
-        barMaxWidth: 36,
+        lineStyle: { color, width: 2 },
+        symbol: "circle",
+        symbolSize: 6,
       },
     ],
   };

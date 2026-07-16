@@ -7,4 +7,7 @@ export default defineConfig({
   plugins: [
     react(),
   ],
+  optimizeDeps: {
+    include: ['echarts', 'echarts-for-react', 'tslib'],
+  },
 })

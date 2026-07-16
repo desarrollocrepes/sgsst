@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { API_EMPLEADOS, API_REPORTES } from "../config/api";
 import { fmtDate, getBadge, badgeLabel } from "../utils/helpers";
-import { computeStats } from "../utils/stats"; // Mueve la función computeStats aquí
+import { computeStats } from "../utils/stats";
 import Avatar from "../components/Avatar";
 import CasePanel from "../components/CasePanel";
 import BarChart from "../components/charts/BarChart";
+import PieChart from "../components/charts/PieChart";
+import LineChart from "../components/charts/LineChart";
 
 export default function SST({ user }) {
   const [reportes, setReportes] = useState([]);
@@ -137,17 +139,17 @@ export default function SST({ user }) {
       {/* Stats Charts */}
       <div className="section-title" style={{ marginBottom: 14 }}>Estadísticas</div>
       <div className="stats-grid">
-        <BarChart title="Estado de Casos" data={stats.estadoCasos} />
+        <PieChart title="Estado de Casos" data={stats.estadoCasos} />
         <BarChart title="IMC" data={stats.imc} color="var(--gold)" />
-        <BarChart title="Entidad" data={stats.entidad} color="var(--purple)" />
+        <PieChart title="Entidad" data={stats.entidad} />
         <BarChart title="Acción Realizada" data={stats.accion} color="var(--teal)" />
         <BarChart title="Sistema Afectado" data={stats.sistema} color="#E53E3E" />
-        <BarChart title="Género" data={stats.genero} color="var(--navy)" />
+        <PieChart title="Género" data={stats.genero} />
         <BarChart title="Categoría" data={stats.categoria} color="#805AD5" />
         <BarChart title="Diagnósticos CIE" data={stats.diagnostico} color="#D69E2E" />
         <BarChart title="Por Cargo" data={stats.cargo} color="#3182CE" />
-        <BarChart title="Edad (rangos)" data={stats.edadRango} color="#805AD5" />
-        <BarChart title="Antigüedad (rangos)" data={stats.antiguedadRango} color="#F59E0B" />
+        <LineChart title="Edad (rangos)" data={stats.edadRango} color="#10B981" />
+        <LineChart title="Antigüedad (rangos)" data={stats.antiguedadRango} color="#F59E0B" />
         <BarChart title="Área" data={stats.area} color="#0F766E" />
       </div>
 
