@@ -44,7 +44,7 @@ export default function Login({ onLogin }) {
     <div className="login-page">
       <div className="login-card">
         <div className="login-logo"><Clipboard /></div>
-        <div className="login-title">SG-SST</div>
+        <div className="login-title">Casos de Salud General</div>
         <input
           className="login-input"
           type="number"

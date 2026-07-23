@@ -166,6 +166,7 @@ export default function ReporteForm({ equipo, user, onClose, onSaved }) {
               <option value="EPS">EPS</option>
               <option value="ARL">ARL</option>
               <option value="Medicina Prepagada">Medicina Prepagada</option>
+              <option value="Otro">Otro</option>
             </select>
           </div>
           <div className="form-group">
